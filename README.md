@@ -28,7 +28,7 @@ For detailed documentation, visit **[HexDocs](https://hexdocs.pm/fusion_kit)**.
 We build in public. Join us:
 
 - **Discord**: Join our [Discord Server](https://discord.gg/7zjnpna239) for support.
-- **GitHub**: Contribute via [GitHub Issues](https://github.com/pedrohfonseca81/fusion_kit/issues).
+- **GitHub**: Contribute via [GitHub Issues](https://github.com/FusionFlow-app/fusion_kit/issues).
 
 ## License
 

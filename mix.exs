@@ -10,7 +10,7 @@ defmodule FusionKit.MixProject do
       description: description(),
       package: package(),
       deps: deps(),
-      source_url: "https://github.com/pedrohfonseca81/fusion_kit"
+      source_url: "https://github.com/FusionFlow-app/fusion_kit"
     ]
   end
 
@@ -36,7 +36,7 @@ defmodule FusionKit.MixProject do
     [
       name: "fusion_kit",
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/pedrohfonseca81/fusion_kit"}
+      links: %{"GitHub" => "https://github.com/FusionFlow-app/fusion_kit"}
     ]
   end
 end
