@@ -1,18 +1,8 @@
 defmodule FusionKit do
   @moduledoc """
-  Documentation for `FusionKit`.
+  FusionKit is an Elixir SDK for building custom integrations and extensions for FusionFlow.
+
+  It provides a structured way to define nodes (`FusionFlow.Node`) and register them
+  via a manifest (`FusionFlow.Manifest`).
   """
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> FusionKit.hello()
-      :world
-
-  """
-  def hello do
-    :world
-  end
 end

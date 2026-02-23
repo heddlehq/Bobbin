@@ -11,7 +11,7 @@
 
 ## 🚀 Getting Started
 
-To start building with **FusionKit**, add it to your `mix.exs`:
+Add `fusion_kit` to your dependencies in `mix.exs`:
 
 ```elixir
 def deps do
@@ -21,7 +21,7 @@ def deps do
 end
 ```
 
-For detailed setup, please refer to the **[Installation Guide](https://hexdocs.pm/fusion_kit/installation.html)** (coming soon).
+For detailed documentation, visit **[HexDocs](https://hexdocs.pm/fusion_kit)**.
 
 ## 🤝 Community & Contributing
 
