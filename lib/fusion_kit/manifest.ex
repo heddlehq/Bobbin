@@ -1,4 +1,4 @@
-defmodule FusionFlow.Manifest do
+defmodule FusionKit.Manifest do
   @moduledoc """
   Macros and functions to define an integration manifest.
 
@@ -7,7 +7,7 @@ defmodule FusionFlow.Manifest do
   ## Example
 
       defmodule MyIntegration do
-        use FusionFlow.Manifest
+        use FusionKit.Manifest
 
         manifest do
           nodes [
@@ -23,7 +23,7 @@ defmodule FusionFlow.Manifest do
 
   defmacro __using__(_opts) do
     quote do
-      import FusionFlow.Manifest, only: [manifest: 1, nodes: 1]
+      import FusionKit.Manifest, only: [manifest: 1, nodes: 1]
     end
   end
 

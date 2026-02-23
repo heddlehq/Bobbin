@@ -1,6 +1,6 @@
-defmodule FusionFlow.Node do
+defmodule FusionKit.Node do
   @moduledoc """
-  Defines the behavior and macros for creating FusionFlow nodes.
+  Defines the behavior and macros for creating FusionKit nodes.
 
   A node is the fundamental unit of logic in a flow. It consists of a `definition/0`
   describing its interface and a `handler/3` to process data.
@@ -8,7 +8,7 @@ defmodule FusionFlow.Node do
   ## Example
 
       defmodule MyNodes.HttpNode do
-        use FusionFlow.Node
+        use FusionKit.Node
 
         definition do
           %{
@@ -59,8 +59,8 @@ defmodule FusionFlow.Node do
 
   defmacro __using__(_opts) do
     quote do
-      @behaviour FusionFlow.Node
-      import FusionFlow.Node, only: [definition: 1]
+      @behaviour FusionKit.Node
+      import FusionKit.Node, only: [definition: 1]
     end
   end
 
@@ -69,7 +69,7 @@ defmodule FusionFlow.Node do
   """
   defmacro definition(do: block) do
     quote do
-      @impl FusionFlow.Node
+      @impl FusionKit.Node
       def definition do
         unquote(block)
       end
