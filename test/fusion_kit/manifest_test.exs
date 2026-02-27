@@ -5,14 +5,14 @@ defmodule FusionKit.ManifestTest do
     use FusionKit.Node
     definition do: %{name: "node_a", title: "Node A"}
     @impl true
-    def handler(_, ctx, _), do: {:ok, ctx, "ok"}
+    def handler(ctx, _), do: {:ok, ctx, "ok"}
   end
 
   defmodule NodeB do
     use FusionKit.Node
     definition do: %{name: "node_b", title: "Node B"}
     @impl true
-    def handler(_, ctx, _), do: {:ok, ctx, "ok"}
+    def handler(ctx, _), do: {:ok, ctx, "ok"}
   end
 
   defmodule TestManifest do

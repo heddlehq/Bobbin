@@ -18,7 +18,7 @@ The project follows a modular and behavior-driven architecture:
 Nodes are the core processing units.
 - **Strict Pattern**: Every node MUST use `use FusionKit.Node`.
 - **Definition Macro**: Metadata must be declared inside the `definition` macro.
-- **Handler Arity**: The `handler/3` function must always accept `(config, context, input)`.
+- **Handler Arity**: The `handler/2` function must always accept `(context, input)`.
 
 ### 2. Manifests (`FusionKit.Manifest`)
 Manifests register and expose nodes to the platform.
@@ -43,7 +43,7 @@ Manifests register and expose nodes to the platform.
 **Every single functionality, macro, or new node added MUST be accompanied by unit tests.**
 
 - **Location**: All tests must reside in `test/fusion_kit/`.
-- **Coverage**: Tests should cover the `definition/0` metadata and the `handler/3` logic.
+- **Coverage**: Tests should cover the `definition/0` metadata and the `handler/2` logic.
 - **Verification**: Run `mix test` before submitting any change.
 
 ### Example Test Pattern
@@ -56,7 +56,7 @@ defmodule FusionKit.ExampleTest do
     use FusionKit.Node
     definition do: %{name: "my_node", title: "My Node", inputs: [:exec], outputs: [:ok]}
     @impl true
-    def handler(_, context, _), do: {:ok, context, :ok}
+    def handler(context, _), do: {:ok, context, :ok}
   end
 
   test "verifies node definition" do
@@ -64,7 +64,7 @@ defmodule FusionKit.ExampleTest do
   end
 
   test "verifies handler execution" do
-    assert {:ok, %{state: 1}, :ok} == MyNode.handler(%{}, %{state: 1}, nil)
+    assert {:ok, %{state: 1}, :ok} == MyNode.handler(%{state: 1}, nil)
   end
 end
 ```
@@ -90,9 +90,7 @@ defmodule MyIntegration.Nodes.GreetingNode do
   end
 
   @impl true
-  def handler(config, context, _input) do
-    # config: UI field values
-    # context: Global flow variables
+  def handler(context, _input) do
     {:ok, context, :success}
   end
 end

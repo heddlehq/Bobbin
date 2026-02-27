@@ -3,7 +3,7 @@ defmodule FusionKit.Node do
   Defines the behavior and macros for creating FusionKit nodes.
 
   A node is the fundamental unit of logic in a flow. It consists of a `definition/0`
-  describing its interface and a `handler/3` to process data.
+  describing its interface and a `handler/2` to process data.
 
   ## Example
 
@@ -22,14 +22,12 @@ defmodule FusionKit.Node do
         end
 
         @impl true
-        def handler(config, context, _input) do
-          # Logic: config holds UI values, context holds variables
+        def handler(context, input) do
           {:ok, context, :success}
         end
       end
   """
 
-  @type config :: map()
   @type context :: map()
   @type input :: any()
   @type output_port :: atom() | String.t()
@@ -53,7 +51,7 @@ defmodule FusionKit.Node do
 
   Returns `{:ok, new_context, output_port}` on success, or `{:error, reason}` on failure.
   """
-  @callback handler(config(), context(), input()) ::
+  @callback handler(context(), input()) ::
               {:ok, context(), output_port()}
               | {:error, term()}
 
@@ -73,6 +71,61 @@ defmodule FusionKit.Node do
       def definition do
         unquote(block)
       end
+    end
+  end
+
+  @doc """
+  Converts a node module's definition to a Rete.js-compatible map.
+
+  The returned map follows the Rete.js node schema with `id`, `label`,
+  `inputs`, and `outputs` structured as socket definitions.
+
+  ## Example
+
+      FusionKit.Node.to_rete(MyNodes.HttpNode)
+      # => %{
+      #   id: "http_request",
+      #   label: "HTTP Request",
+      #   inputs: [%{id: "exec", label: "Exec"}, %{id: "url", label: "Url"}],
+      #   outputs: [%{id: "success", label: "Success"}, %{id: "error", label: "Error"}]
+      # }
+  """
+  @spec to_rete(module()) :: map()
+  def to_rete(module) do
+    definition = module.definition()
+
+    %{
+      id: definition.name,
+      label: definition.title,
+      inputs: definition |> Map.get(:inputs, []) |> Enum.map(&port_to_rete/1),
+      outputs: definition |> Map.get(:outputs, []) |> Enum.map(&port_to_rete/1)
+    }
+    |> maybe_put(:category, definition)
+    |> maybe_put(:icon, definition)
+  end
+
+  defp port_to_rete(port) when is_atom(port) do
+    %{id: Atom.to_string(port), label: humanize(port)}
+  end
+
+  defp port_to_rete(port) when is_binary(port) do
+    %{id: port, label: port}
+  end
+
+  defp port_to_rete(%{} = port), do: port
+
+  defp humanize(atom) do
+    atom
+    |> Atom.to_string()
+    |> String.replace("_", " ")
+    |> String.split(" ")
+    |> Enum.map_join(" ", &String.capitalize/1)
+  end
+
+  defp maybe_put(map, key, definition) do
+    case Map.get(definition, key) do
+      nil -> map
+      value -> Map.put(map, key, value)
     end
   end
 end
