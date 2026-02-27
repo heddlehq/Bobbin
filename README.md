@@ -16,7 +16,7 @@ Add `fusion_kit` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:fusion_kit, "~> 0.1.0"}
+    {:fusion_kit, "~> 0.2.0"}
   ]
 end
 ```
