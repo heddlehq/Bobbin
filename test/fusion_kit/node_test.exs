@@ -9,6 +9,7 @@ defmodule FusionKit.NodeTest do
         name: "test_node",
         title: "Test Node",
         category: :general,
+        color: "bg-blue-500",
         icon: "hero-cog",
         inputs: [:exec],
         outputs: [:success]
@@ -38,6 +39,7 @@ defmodule FusionKit.NodeTest do
       assert rete.id == "test_node"
       assert rete.label == "Test Node"
       assert rete.category == :general
+      assert rete.color == "bg-blue-500"
       assert rete.icon == "hero-cog"
     end
 
@@ -100,6 +102,7 @@ defmodule FusionKit.NodeTest do
       assert rete.inputs == []
       assert rete.outputs == []
       refute Map.has_key?(rete, :category)
+      refute Map.has_key?(rete, :color)
       refute Map.has_key?(rete, :icon)
     end
   end

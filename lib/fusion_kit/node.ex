@@ -15,6 +15,7 @@ defmodule FusionKit.Node do
             name: "http_request",
             title: "HTTP Request",
             category: :network,
+            color: "bg-blue-500",
             icon: "hero-globe-alt",
             inputs: [:exec, :url],
             outputs: [:success, :error]
@@ -35,6 +36,7 @@ defmodule FusionKit.Node do
           required(:name) => String.t(),
           required(:title) => String.t(),
           optional(:category) => atom() | String.t(),
+          optional(:color) => String.t(),
           optional(:icon) => String.t(),
           optional(:inputs) => [map() | atom() | String.t()],
           optional(:outputs) => [map() | atom() | String.t()],
@@ -86,6 +88,7 @@ defmodule FusionKit.Node do
       # => %{
       #   id: "http_request",
       #   label: "HTTP Request",
+      #   color: "bg-blue-500",
       #   inputs: [%{id: "exec", label: "Exec"}, %{id: "url", label: "Url"}],
       #   outputs: [%{id: "success", label: "Success"}, %{id: "error", label: "Error"}]
       # }
@@ -101,6 +104,7 @@ defmodule FusionKit.Node do
       outputs: definition |> Map.get(:outputs, []) |> Enum.map(&port_to_rete/1)
     }
     |> maybe_put(:category, definition)
+    |> maybe_put(:color, definition)
     |> maybe_put(:icon, definition)
   end
 
