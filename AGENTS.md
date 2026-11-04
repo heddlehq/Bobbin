@@ -1,12 +1,12 @@
 # 🤖 AGENTS.md - Development Guide
 
-Welcome to the **FusionKit** project. This document serves as the source of truth for AI agents and developers working on this SDK. Follow these rules strictly to maintain consistency, reliability, and project health.
+Welcome to the **Bobbin** project. This document serves as the source of truth for AI agents and developers working on this SDK. Follow these rules strictly to maintain consistency, reliability, and project health.
 
 ---
 
 ## 🎯 Motivation
 
-**FusionKit** is the bridge between developers and the **FusionFlow** platform. As an SDK, its primary goal is to provide a **simple, predictable, and robust** interface for building custom integrations. Every line of code should prioritize developer experience (DX) and system stability.
+**Bobbin** is the bridge between developers and the **Heddle** platform. As an SDK, its primary goal is to provide a **simple, predictable, and robust** interface for building custom integrations. Every line of code should prioritize developer experience (DX) and system stability.
 
 ---
 
@@ -14,22 +14,22 @@ Welcome to the **FusionKit** project. This document serves as the source of trut
 
 The project follows a modular and behavior-driven architecture:
 
-### 1. Nodes (`FusionKit.Node`)
+### 1. Nodes (`Bobbin.Node`)
 Nodes are the core processing units.
-- **Strict Pattern**: Every node MUST use `use FusionKit.Node`.
+- **Strict Pattern**: Every node MUST use `use Bobbin.Node`.
 - **Definition Macro**: Metadata must be declared inside the `definition` macro.
 - **Handler Arity**: The `handler/2` function must always accept `(context, input)`.
 
-### 2. Manifests (`FusionKit.Manifest`)
+### 2. Manifests (`Bobbin.Manifest`)
 Manifests register and expose nodes to the platform.
-- **Strict Pattern**: Use `use FusionKit.Manifest`.
+- **Strict Pattern**: Use `use Bobbin.Manifest`.
 - **Automatic Generation**: The `nodes` macro generates `available_nodes/0`, `get_definitions/0`, and `get_node_module/1`.
 
 ---
 
 ## 📏 Coding Standards
 
-- **Namespaces**: Use only the `FusionKit` namespace for SDK core modules (e.g., `FusionKit.Node`, `FusionKit.Manifest`).
+- **Namespaces**: Use only the `Bobbin` namespace for SDK core modules (e.g., `Bobbin.Node`, `Bobbin.Manifest`).
 - **Typespecs**: Every public function and callback MUST have a `@type` or `@spec`.
 - **Documentation**: Modules must have a `@moduledoc` with usage examples. Functions must have a `@doc`.
 - **Atoms vs Strings**: 
@@ -42,18 +42,18 @@ Manifests register and expose nodes to the platform.
 
 **Every single functionality, macro, or new node added MUST be accompanied by unit tests.**
 
-- **Location**: All tests must reside in `test/fusion_kit/`.
+- **Location**: All tests must reside in `test/bobbin/`.
 - **Coverage**: Tests should cover the `definition/0` metadata and the `handler/2` logic.
 - **Verification**: Run `mix test` before submitting any change.
 
 ### Example Test Pattern
 
 ```elixir
-defmodule FusionKit.ExampleTest do
+defmodule Bobbin.ExampleTest do
   use ExUnit.Case, async: true
 
   defmodule MyNode do
-    use FusionKit.Node
+    use Bobbin.Node
     definition do: %{name: "my_node", title: "My Node", inputs: [:exec], outputs: [:ok]}
     @impl true
     def handler(context, _), do: {:ok, context, :ok}
@@ -76,7 +76,7 @@ end
 ### Creating a New Node
 ```elixir
 defmodule MyIntegration.Nodes.GreetingNode do
-  use FusionKit.Node
+  use Bobbin.Node
 
   definition do
     %{
@@ -99,7 +99,7 @@ end
 ### Registering in a Manifest
 ```elixir
 defmodule MyIntegration.Manifest do
-  use FusionKit.Manifest
+  use Bobbin.Manifest
 
   manifest do
     nodes [
