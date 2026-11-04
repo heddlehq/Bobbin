@@ -1,4 +1,4 @@
-defmodule FusionKit.Manifest do
+defmodule Bobbin.Manifest do
   @moduledoc """
   Macros and functions to define an integration manifest.
 
@@ -7,7 +7,7 @@ defmodule FusionKit.Manifest do
   ## Example
 
       defmodule MyIntegration do
-        use FusionKit.Manifest
+        use Bobbin.Manifest
 
         manifest do
           nodes [
@@ -23,7 +23,7 @@ defmodule FusionKit.Manifest do
 
   defmacro __using__(_opts) do
     quote do
-      import FusionKit.Manifest, only: [manifest: 1, nodes: 1]
+      import Bobbin.Manifest, only: [manifest: 1, nodes: 1]
     end
   end
 
