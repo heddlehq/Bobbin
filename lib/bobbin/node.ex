@@ -1,6 +1,6 @@
-defmodule FusionKit.Node do
+defmodule Bobbin.Node do
   @moduledoc """
-  Defines the behavior and macros for creating FusionKit nodes.
+  Defines the behavior and macros for creating Bobbin nodes.
 
   A node is the fundamental unit of logic in a flow. It consists of a `definition/0`
   describing its interface and a `handler/2` to process data.
@@ -8,7 +8,7 @@ defmodule FusionKit.Node do
   ## Example
 
       defmodule MyNodes.HttpNode do
-        use FusionKit.Node
+        use Bobbin.Node
 
         definition do
           %{
@@ -59,8 +59,8 @@ defmodule FusionKit.Node do
 
   defmacro __using__(_opts) do
     quote do
-      @behaviour FusionKit.Node
-      import FusionKit.Node, only: [definition: 1]
+      @behaviour Bobbin.Node
+      import Bobbin.Node, only: [definition: 1]
     end
   end
 
@@ -69,7 +69,7 @@ defmodule FusionKit.Node do
   """
   defmacro definition(do: block) do
     quote do
-      @impl FusionKit.Node
+      @impl Bobbin.Node
       def definition do
         unquote(block)
       end
@@ -84,7 +84,7 @@ defmodule FusionKit.Node do
 
   ## Example
 
-      FusionKit.Node.to_rete(MyNodes.HttpNode)
+      Bobbin.Node.to_rete(MyNodes.HttpNode)
       # => %{
       #   id: "http_request",
       #   label: "HTTP Request",

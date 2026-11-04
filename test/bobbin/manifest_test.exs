@@ -1,28 +1,28 @@
-defmodule FusionKit.ManifestTest do
+defmodule Bobbin.ManifestTest do
   use ExUnit.Case, async: true
 
   defmodule NodeA do
-    use FusionKit.Node
-    definition do: %{name: "node_a", title: "Node A"}
+    use Bobbin.Node
+    definition(do: %{name: "node_a", title: "Node A"})
     @impl true
     def handler(ctx, _), do: {:ok, ctx, "ok"}
   end
 
   defmodule NodeB do
-    use FusionKit.Node
-    definition do: %{name: "node_b", title: "Node B"}
+    use Bobbin.Node
+    definition(do: %{name: "node_b", title: "Node B"})
     @impl true
     def handler(ctx, _), do: {:ok, ctx, "ok"}
   end
 
   defmodule TestManifest do
-    use FusionKit.Manifest
+    use Bobbin.Manifest
 
     manifest do
-      nodes [
+      nodes([
         NodeA,
         NodeB
-      ]
+      ])
     end
   end
 
