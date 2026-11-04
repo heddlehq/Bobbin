@@ -1,16 +1,16 @@
-defmodule FusionKit.MixProject do
+defmodule Bobbin.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :fusion_kit,
+      app: :bobbin,
       version: "0.2.1",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       description: description(),
       package: package(),
       deps: deps(),
-      source_url: "https://github.com/FusionFlow-app/fusion_kit"
+      source_url: "https://github.com/heddlehq/Bobbin"
     ]
   end
 
@@ -29,14 +29,14 @@ defmodule FusionKit.MixProject do
   end
 
   defp description do
-    "Elixir SDK for building custom integrations and extensions for FusionFlow."
+    "Elixir SDK for building custom integrations and extensions for Heddle."
   end
 
   defp package do
     [
-      name: "fusion_kit",
+      name: "bobbin",
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/FusionFlow-app/fusion_kit"}
+      links: %{"GitHub" => "https://github.com/heddlehq/Bobbin"}
     ]
   end
 end
