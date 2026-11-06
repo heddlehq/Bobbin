@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/img/logo.png" alt="Bobbin" width="180" />
+  <img src="https://raw.githubusercontent.com/heddlehq/Bobbin/main/assets/img/logo.png" alt="Bobbin" width="180" />
 </p>
 
 <h2 align="center">Bobbin</h2>
@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://hex.pm/packages/fusion_kit"><img src="https://img.shields.io/hexpm/v/fusion_kit?style=flat-square&color=6e4a7e&label=hex.pm" alt="Hex.pm" /></a>&nbsp;
-  <a href="https://hexdocs.pm/fusion_kit"><img src="https://img.shields.io/badge/docs-hexdocs-8b5cf6?style=flat-square&logo=elixir&logoColor=white" alt="Docs" /></a>&nbsp;
+  <a href="https://hex.pm/packages/bobbin"><img src="https://img.shields.io/hexpm/v/bobbin?style=flat-square&color=6e4a7e&label=hex.pm" alt="Hex.pm" /></a>&nbsp;
+  <a href="https://hexdocs.pm/bobbin"><img src="https://img.shields.io/badge/docs-hexdocs-8b5cf6?style=flat-square&logo=elixir&logoColor=white" alt="Docs" /></a>&nbsp;
   <a href="https://github.com/heddlehq/Bobbin/blob/main/LICENSE"><img src="https://img.shields.io/github/license/heddlehq/Bobbin?style=flat-square&color=blue" alt="License" /></a>&nbsp;
   <a href="https://github.com/heddlehq/Bobbin"><img src="https://img.shields.io/github/stars/heddlehq/Bobbin?style=flat-square&color=f5a623&logo=github" alt="GitHub Stars" /></a>&nbsp;
   <a href="https://discord.gg/7zjnpna239"><img src="https://img.shields.io/discord/1474594465225117740?style=flat-square&color=5865F2&logo=discord&logoColor=white&label=community" alt="Discord" /></a>
@@ -30,12 +30,12 @@ Add `bobbin` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:bobbin, github: "heddlehq/Bobbin"}
+    {:bobbin, "~> 0.2"}
   ]
 end
 ```
 
-For detailed documentation, visit **[HexDocs](https://hexdocs.pm/fusion_kit)**.
+For detailed documentation, visit **[HexDocs](https://hexdocs.pm/bobbin)**.
 
 ## 🤝 Community & Contributing
 
