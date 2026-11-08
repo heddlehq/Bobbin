@@ -35,7 +35,7 @@ def deps do
 end
 ```
 
-For detailed documentation, visit **[HexDocs](https://hexdocs.pm/bobbin)**.
+To write your first node, read **[Writing a node](https://hexdocs.pm/bobbin/writing-a-node.html)**. The reference is on **[HexDocs](https://hexdocs.pm/bobbin)**, and how to use Heddle's own nodes is in the **[Heddle documentation](https://heddlehq.github.io/website/docs/)**.
 
 ## 🤝 Community & Contributing
 
