@@ -4,7 +4,7 @@ defmodule Bobbin.MixProject do
   def project do
     [
       app: :bobbin,
-      version: "0.2.2",
+      version: "0.3.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       description: description(),
@@ -24,7 +24,10 @@ defmodule Bobbin.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, "~> 0.40.1", preserve: Mix.env() == :dev, runtime: false}
+      {:ex_doc, "~> 0.40.1", preserve: Mix.env() == :dev, runtime: false},
+      {:yaml_elixir, "~> 2.11"},
+      {:req, ">= 0.5.0 and < 1.0.0"},
+      {:plug, "~> 1.0", only: :test}
     ]
   end
 
@@ -36,7 +39,8 @@ defmodule Bobbin.MixProject do
     [
       name: "bobbin",
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/heddlehq/Bobbin"}
+      links: %{"GitHub" => "https://github.com/heddlehq/Bobbin"},
+      files: ~w(lib priv mix.exs README.md LICENSE)
     ]
   end
 end
