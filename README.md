@@ -30,7 +30,7 @@ Add `bobbin` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:bobbin, "~> 0.4"}
+    {:bobbin, "~> 0.5"}
   ]
 end
 ```
@@ -80,7 +80,11 @@ See `Bobbin.Integration` for the whole format, and
 [`priv/integration.schema.json`](priv/integration.schema.json) for editors that read
 JSON Schema.
 
-For what a manifest can't express, write a node in Elixir with `Bobbin.Node`.
+For what a manifest can't express, like a database driver, write the nodes in Elixir
+with `Bobbin.Node` and `Bobbin.Service`: the credential, the `success` and `error`
+outputs, templates and files work as in Heddle's own nodes, and `Bobbin.Connections`
+keeps a driver's connection open between runs. The host (Heddle) plugs in through
+`Bobbin.Host`.
 
 ## 🤝 Community & Contributing
 
