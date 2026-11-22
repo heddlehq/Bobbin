@@ -30,12 +30,51 @@ Add `bobbin` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:bobbin, "~> 0.2"}
+    {:bobbin, "~> 0.3"}
   ]
 end
 ```
 
 For detailed documentation, visit **[HexDocs](https://hexdocs.pm/bobbin)**.
+
+## Integrations without code
+
+Most integrations are a set of HTTP calls. Write them as a YAML manifest and each
+action becomes a node in Heddle, with a `success` and an `error` output:
+
+```bash
+mix bobbin.new acme_crm                     # writes acme_crm.yaml to fill in
+mix bobbin.validate acme_crm.yaml           # says what is wrong, if anything
+mix bobbin.run acme_crm.yaml "Get Item" \
+  --field id=42 --credential api_key=$KEY   # runs an action against the real API
+```
+
+```yaml
+id: acme_crm
+name: Acme CRM
+version: 1.0.0
+base_url: https://api.acme.test/v1/
+
+credential:
+  fields:
+    - {name: api_key, label: API key, secret: true}
+  auth: {type: bearer, token: "{{credential.api_key}}"}
+
+actions:
+  - name: Get Item
+    fields:
+      - {name: id, label: Item ID}
+    request: {method: GET, path: "items/{{fields.id}}"}
+    output: {pick: [id, name]}
+```
+
+Requests are built with `{{fields.<name>}}` and `{{credential.<name>}}`, empty values
+are left out, and pagination comes in three presets: `cursor`, `offset` and `link`.
+See `Bobbin.Integration` for the whole format, and
+[`priv/integration.schema.json`](priv/integration.schema.json) for editors that read
+JSON Schema.
+
+For what a manifest can't express, write a node in Elixir with `Bobbin.Node`.
 
 ## 🤝 Community & Contributing
 
