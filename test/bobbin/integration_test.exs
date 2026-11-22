@@ -23,6 +23,54 @@ defmodule Bobbin.IntegrationTest do
     action = Integration.action(integration, "Create Ticket")
     assert action.request.method == "POST"
     assert %{name: "priority", type: "select", default: "low"} = Enum.at(action.fields, 1)
+
+    trigger = Integration.trigger(integration, "New Ticket")
+    assert trigger.poll == %{every: 10, id: "ticket.number"}
+    assert trigger.output == %{"path" => "tickets"}
+  end
+
+  test "a trigger polls every 5 minutes by id unless it says otherwise" do
+    yaml = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    base_url: https://acme.test/
+    actions:
+      - {name: Ping, request: {method: GET, path: ping}}
+    triggers:
+      - {name: New, request: {method: GET, path: items}}
+    """
+
+    assert {:ok, %{triggers: [%{poll: %{every: 5, id: "id"}}]}} = Integration.parse(yaml)
+  end
+
+  test "says what is wrong with a trigger" do
+    yaml = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    base_url: https://acme.test/
+    actions:
+      - {name: Ping, request: {method: GET, path: ping}}
+    triggers:
+      - name: New
+        request: {method: GET}
+        poll: {every: 0, id: ""}
+      - name: New
+        request: {method: GET, path: x}
+    """
+
+    assert {:error, errors} = Integration.parse(yaml)
+
+    for expected <- [
+          "triggers must have different names",
+          "triggers[0].request needs a method and a path",
+          "triggers[0].poll.every must be",
+          "triggers[0].poll.id must be"
+        ] do
+      assert expected in Enum.map(errors, &String.slice(&1, 0, String.length(expected))),
+             "missing: #{expected}"
+    end
   end
 
   test "says everything that is wrong" do
@@ -67,11 +115,18 @@ defmodule Bobbin.IntegrationTest do
     assert {:error, ["Can't read nope.yaml" <> _]} = Integration.load("nope.yaml")
   end
 
-  test "the JSON Schema is valid JSON and names every action key the parser reads" do
+  test "the JSON Schema is valid JSON and names every key the parser reads" do
     schema = "priv/integration.schema.json" |> File.read!() |> JSON.decode!()
-    action = schema["properties"]["actions"]["items"]["properties"]
+    action = schema["$defs"]["action"]["properties"]
 
     assert Map.keys(action) |> Enum.sort() ==
              ~w(description fields name output pagination request)
+
+    assert schema["properties"]["actions"]["items"] == %{"$ref" => "#/$defs/action"}
+
+    assert [%{"$ref" => "#/$defs/action"}, poll] =
+             schema["properties"]["triggers"]["items"]["allOf"]
+
+    assert Map.keys(poll["properties"]["poll"]["properties"]) |> Enum.sort() == ~w(every id)
   end
 end

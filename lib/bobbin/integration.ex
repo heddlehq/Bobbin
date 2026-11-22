@@ -71,6 +71,27 @@ defmodule Bobbin.Integration do
   `pagination.type` is `cursor`, `offset` or `link` (the `Link` header). The node
   returns the items of every page, from `pagination.items_path`.
 
+  ## Triggers
+
+  `triggers` start a flow when something new shows up in the service. A trigger is
+  written like an action whose output is a list, plus `poll`:
+
+  ```yaml
+  triggers:
+    - name: New Ticket
+      request:
+        method: GET
+        path: tickets
+      output:
+        path: tickets
+      poll:
+        every: 5   # minutes, 5 when left out
+        id: id     # the key that tells items apart, "id" when left out
+  ```
+
+  The host calls the request every `every` minutes and starts the flow once for each
+  item whose `id` it hasn't seen. The first call only records what is already there.
+
   See `priv/integration.schema.json` for the full format.
   """
 
@@ -84,7 +105,8 @@ defmodule Bobbin.Integration do
           base_url: String.t(),
           credential: map() | nil,
           errors: map(),
-          actions: [map()]
+          actions: [map()],
+          triggers: [map()]
         }
 
   @auth_types ~w(bearer header query basic oauth2 none)
@@ -133,6 +155,7 @@ defmodule Bobbin.Integration do
       |> required(map, "base_url", ~r/\Ahttps?:\/\//, "a URL starting with http")
       |> check_credential(map["credential"])
       |> check_actions(map["actions"])
+      |> check_triggers(map["triggers"])
 
     if errors == [], do: {:ok, normalize(map)}, else: {:error, Enum.reverse(errors)}
   end
@@ -140,6 +163,10 @@ defmodule Bobbin.Integration do
   @doc "The action called `name`, or nil."
   @spec action(t(), String.t()) :: map() | nil
   def action(integration, name), do: Enum.find(integration.actions, &(&1.name == name))
+
+  @doc "The trigger called `name`, or nil."
+  @spec trigger(t(), String.t()) :: map() | nil
+  def trigger(integration, name), do: Enum.find(integration.triggers, &(&1.name == name))
 
   ## Checks
 
@@ -192,8 +219,54 @@ defmodule Bobbin.Integration do
 
   defp check_actions(errors, _other), do: ["actions must list at least one action" | errors]
 
-  defp check_action(errors, action, index) when is_map(action) do
-    where = "actions[#{index}]"
+  defp check_triggers(errors, nil), do: errors
+
+  defp check_triggers(errors, triggers) when is_list(triggers) do
+    names = Enum.map(triggers, &(is_map(&1) && &1["name"]))
+
+    errors =
+      if length(Enum.uniq(names)) == length(names),
+        do: errors,
+        else: ["triggers must have different names" | errors]
+
+    triggers
+    |> Enum.with_index()
+    |> Enum.reduce(errors, fn
+      {trigger, index}, errors when is_map(trigger) ->
+        errors
+        |> check_action(trigger, "triggers[#{index}]")
+        |> check_poll(trigger["poll"], "triggers[#{index}]")
+
+      {_trigger, index}, errors ->
+        ["triggers[#{index}] must be a map" | errors]
+    end)
+  end
+
+  defp check_triggers(errors, _other), do: ["triggers must be a list" | errors]
+
+  defp check_poll(errors, nil, _where), do: errors
+
+  defp check_poll(errors, poll, where) when is_map(poll) do
+    errors =
+      case poll["every"] do
+        nil -> errors
+        every when is_integer(every) and every >= 1 -> errors
+        _other -> ["#{where}.poll.every must be a whole number of minutes, 1 or more" | errors]
+      end
+
+    case poll["id"] do
+      nil -> errors
+      id when is_binary(id) and id != "" -> errors
+      _other -> ["#{where}.poll.id must be the key that tells items apart" | errors]
+    end
+  end
+
+  defp check_poll(errors, _poll, where), do: ["#{where}.poll must be a map" | errors]
+
+  defp check_action(errors, action, index) when is_map(action) and is_integer(index),
+    do: check_action(errors, action, "actions[#{index}]")
+
+  defp check_action(errors, action, where) when is_map(action) do
     request = action["request"]
 
     errors =
@@ -228,7 +301,8 @@ defmodule Bobbin.Integration do
     end
   end
 
-  defp check_action(errors, _action, index), do: ["actions[#{index}] must be a map" | errors]
+  defp check_action(errors, _action, index) when is_integer(index),
+    do: ["actions[#{index}] must be a map" | errors]
 
   defp required_in(errors, map, key, where) do
     case map[key] do
@@ -283,7 +357,8 @@ defmodule Bobbin.Integration do
         ok_path: get_in(map, ["errors", "ok_path"]),
         message_path: get_in(map, ["errors", "message_path"])
       },
-      actions: Enum.map(map["actions"], &normalize_action/1)
+      actions: Enum.map(map["actions"], &normalize_action/1),
+      triggers: Enum.map(map["triggers"] || [], &normalize_trigger/1)
     }
   end
 
@@ -296,6 +371,14 @@ defmodule Bobbin.Integration do
       fields: Enum.map(credential["fields"] || [], &normalize_field/1),
       auth: credential["auth"]
     }
+  end
+
+  defp normalize_trigger(trigger) do
+    poll = trigger["poll"] || %{}
+
+    trigger
+    |> normalize_action()
+    |> Map.put(:poll, %{every: poll["every"] || 5, id: poll["id"] || "id"})
   end
 
   defp normalize_action(action) do

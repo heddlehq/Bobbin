@@ -85,3 +85,21 @@ actions:
       value:
         id: "{{fields.id}}"
         label: "Ticket {{fields.id}}"
+
+triggers:
+  - name: New Ticket
+    description: Starts the flow for each new ticket.
+    fields:
+      - name: status
+        label: Status
+        default: open
+    request:
+      method: GET
+      path: tickets
+      query:
+        status: "{{fields.status}}"
+    output:
+      path: tickets
+    poll:
+      every: 10
+      id: ticket.number
