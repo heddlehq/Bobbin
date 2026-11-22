@@ -90,4 +90,35 @@ defmodule Bobbin.Integration.RequestTest do
     assert Request.render("n={{ fields.n }}, s={{fields.s}}", vars) == "n=3, s=a"
     assert Request.render(%{"a" => ["{{fields.s}}"]}, vars) == %{"a" => ["a"]}
   end
+
+  describe "poll/5" do
+    test "returns each item with its id, leaving out items without one", %{integration: i} do
+      plug = fn conn ->
+        assert conn.query_string == "status=open"
+
+        Req.Test.json(conn, %{
+          "ok" => true,
+          "tickets" => [
+            %{"ticket" => %{"number" => 1}},
+            %{"ticket" => %{"number" => "b"}},
+            %{"title" => "no id"}
+          ]
+        })
+      end
+
+      assert {:ok, [{"1", %{"ticket" => %{"number" => 1}}}, {"b", _second}]} =
+               Request.poll(i, "New Ticket", %{}, %{"api_key" => "k"}, plug: plug)
+    end
+
+    test "an output that isn't a list is an error", %{integration: i} do
+      plug = &Req.Test.json(&1, %{"ok" => true, "tickets" => %{"one" => 1}})
+
+      assert {:error, "New Ticket must return a list, see output.path."} =
+               Request.poll(i, "New Ticket", %{}, %{}, plug: plug)
+    end
+
+    test "an unknown trigger is an error", %{integration: i} do
+      assert {:error, "Acme has no trigger called Nope."} = Request.poll(i, "Nope", %{}, %{})
+    end
+  end
 end

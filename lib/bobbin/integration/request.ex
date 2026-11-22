@@ -28,13 +28,54 @@ defmodule Bobbin.Integration.Request do
         {:error, "#{integration.name} has no action called #{action_name}."}
 
       action ->
-        vars = %{"fields" => field_values(action, fields), "credential" => credential || %{}}
-        request = build(integration, action, vars, req_options)
+        perform(integration, action, fields, credential, req_options)
+    end
+  end
 
-        case action.pagination do
-          nil -> request |> call(integration) |> output(action, vars)
-          pagination -> paginate(request, integration, pagination, action)
+  @doc """
+  Calls the trigger called `trigger_name` once, for the host to compare with what it
+  saw before.
+
+  Returns `{:ok, items}`, each item paired with its id as a string:
+  `[{"42", %{"id" => 42, ...}}]`. Items without an id are left out.
+  """
+  @spec poll(Integration.t(), String.t(), map(), map(), keyword()) ::
+          {:ok, [{String.t(), term()}]} | {:error, String.t()}
+  def poll(integration, trigger_name, fields, credential, req_options \\ []) do
+    case Integration.trigger(integration, trigger_name) do
+      nil ->
+        {:error, "#{integration.name} has no trigger called #{trigger_name}."}
+
+      trigger ->
+        case perform(integration, trigger, fields, credential, req_options) do
+          {:ok, items} when is_list(items) ->
+            {:ok, for(item <- items, id = item_id(item, trigger.poll.id), do: {id, item})}
+
+          {:ok, _other} ->
+            {:error, "#{trigger_name} must return a list, see output.path."}
+
+          error ->
+            error
         end
+    end
+  end
+
+  defp item_id(item, path) when is_map(item) do
+    case dig(item, path) do
+      nil -> nil
+      id -> text(id)
+    end
+  end
+
+  defp item_id(_item, _path), do: nil
+
+  defp perform(integration, action, fields, credential, req_options) do
+    vars = %{"fields" => field_values(action, fields), "credential" => credential || %{}}
+    request = build(integration, action, vars, req_options)
+
+    case action.pagination do
+      nil -> request |> call(integration) |> output(action, vars)
+      pagination -> paginate(request, integration, pagination, action)
     end
   end
 
