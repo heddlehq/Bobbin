@@ -1,0 +1,87 @@
+id: acme
+name: Acme
+version: 1.0.0
+description: Tickets in Acme.
+icon: hero-ticket
+base_url: https://api.acme.test/v1/
+
+credential:
+  fields:
+    - name: api_key
+      label: API key
+      secret: true
+  auth:
+    type: header
+    name: X-Api-Key
+    value: "{{credential.api_key}}"
+
+errors:
+  ok_path: ok
+  message_path: error
+
+actions:
+  - name: Create Ticket
+    description: Opens a ticket.
+    fields:
+      - name: title
+        label: Title
+      - name: priority
+        label: Priority
+        type: select
+        options:
+          - {label: Low, value: low}
+          - {label: High, value: high}
+        default: low
+      - name: assignee
+        label: Assignee
+    request:
+      method: POST
+      path: tickets
+      body:
+        title: "{{fields.title}}"
+        priority: "{{fields.priority}}"
+        assignee: "{{fields.assignee}}"
+    output:
+      path: ticket
+      pick: [id, url]
+
+  - name: List Tickets
+    fields:
+      - name: status
+        label: Status
+        default: open
+      - name: tag
+        label: Tag
+        strip: "#"
+    request:
+      method: GET
+      path: tickets
+      query:
+        status: "{{fields.status}}"
+        tag: "{{fields.tag}}"
+    output:
+      pick: [id]
+    pagination:
+      type: cursor
+      items_path: tickets
+      next_path: meta.next
+      limit_param: limit
+      page_size: 2
+
+  - name: Get Ticket
+    fields:
+      - name: id
+        label: Ticket ID
+      - name: limit
+        label: Limit
+        type: number
+        default: 20
+    request:
+      method: GET
+      path: "tickets/{{fields.id}}"
+      query:
+        limit: "{{fields.limit}}"
+    output:
+      value:
+        id: "{{fields.id}}"
+        label: "Ticket {{fields.id}}"
