@@ -4,7 +4,7 @@ defmodule Bobbin.MixProject do
   def project do
     [
       app: :bobbin,
-      version: "0.4.0",
+      version: "0.5.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       description: description(),
@@ -17,7 +17,8 @@ defmodule Bobbin.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger, :public_key, :ssl],
+      mod: {Bobbin.Application, []}
     ]
   end
 
