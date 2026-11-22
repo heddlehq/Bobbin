@@ -7,21 +7,6 @@ defmodule Bobbin.ServiceTest do
     @behaviour Bobbin.Host
 
     @impl true
-    def fetch(context, path), do: get_in(context, String.split(path, "."))
-
-    @impl true
-    def render(template, context) when is_binary(template) do
-      Regex.replace(~r/\{\{(.*?)\}\}/, template, fn _match, path ->
-        to_string(fetch(context, String.trim(path)))
-      end)
-    end
-
-    def render(_template, _context), do: ""
-
-    @impl true
-    def json(template, context, _check), do: JSON.decode(render(template, context))
-
-    @impl true
     def credential(1, "main", "acme", opts), do: {:ok, %{"key" => "k", "opts" => opts}}
     def credential(_workspace, name, _kind, _opts), do: {:error, "No credential #{name}"}
   end

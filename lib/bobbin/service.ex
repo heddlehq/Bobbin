@@ -35,6 +35,7 @@ defmodule Bobbin.Service do
   """
 
   alias Bobbin.Host
+  alias Bobbin.Template
 
   @color "bg-orange-500/15 text-orange-700 dark:text-orange-300"
   @logo_color "bg-gray-100 dark:bg-slate-800"
@@ -93,7 +94,7 @@ defmodule Bobbin.Service do
     end
   end
 
-  def field(context, name), do: Host.render(context[name], context)
+  def field(context, name), do: Template.render(context[name], context)
 
   @doc """
   Returns what a file field holds.
@@ -105,7 +106,7 @@ defmodule Bobbin.Service do
     template = String.trim(context[name] || "")
 
     with [_match, path] <- Regex.run(@single_placeholder, template),
-         %{"content" => content} = file <- Host.fetch(context, path) do
+         %{"content" => content} = file <- Template.fetch(context, path) do
       if file["encoding"] == "base64", do: Base.decode64!(content), else: content
     else
       _other -> field(context, name)
@@ -121,7 +122,7 @@ defmodule Bobbin.Service do
     template = String.trim(context[name] || "")
 
     with [_match, path] <- Regex.run(@single_placeholder, template),
-         %{"content" => _content} = file <- Host.fetch(context, path) do
+         %{"content" => _content} = file <- Template.fetch(context, path) do
       data = content(context, name)
 
       {:ok, {data, file["type"] || media_type(data)}}
@@ -155,14 +156,14 @@ defmodule Bobbin.Service do
   @doc """
   Reads a field that holds JSON, or a single placeholder pointing at a value.
 
-  Returns `{:ok, value}` or `{:error, message}`. See `c:Bobbin.Host.json/3`.
+  Returns `{:ok, value}` or `{:error, message}`. See `Bobbin.Template.json/3`.
   """
   def json(context, name, check \\ fn _value -> :ok end) do
     template = String.trim(context[name] || "")
 
     case Regex.run(@single_placeholder, template) do
-      [_match, path] -> context |> Host.fetch(path) |> decoded()
-      nil -> Host.json(template, context, check)
+      [_match, path] -> context |> Template.fetch(path) |> decoded()
+      nil -> Template.json(template, context, check)
     end
     |> case do
       {:ok, value} -> {:ok, value}

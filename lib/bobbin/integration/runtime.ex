@@ -8,7 +8,7 @@ defmodule Bobbin.Integration.Runtime do
 
   alias Bobbin.Integration, as: Manifest
   alias Bobbin.Integration.Request
-  alias Bobbin.Host
+  alias Bobbin.Template
   alias Bobbin.Service, as: Integration
 
   @doc "Runs `action_name` of `manifest` with the node's `context`."
@@ -110,7 +110,7 @@ defmodule Bobbin.Integration.Runtime do
   defp fields(action, context) do
     Map.new(action.fields, fn field ->
       template = context[field.name] || field.default
-      {field.name, Host.render(template, context)}
+      {field.name, Template.render(template, context)}
     end)
   end
 end
