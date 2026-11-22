@@ -48,51 +48,73 @@
     "actions": {
       "type": "array",
       "minItems": 1,
+      "items": {"$ref": "#/$defs/action"}
+    },
+    "triggers": {
+      "type": "array",
+      "description": "Start a flow when something new shows up: the request is called every poll.every minutes, and the flow starts once for each item whose poll.id it hadn't seen.",
       "items": {
-        "type": "object",
-        "required": ["name", "request"],
-        "properties": {
-          "name": {"type": "string", "minLength": 1},
-          "description": {"type": "string"},
-          "fields": {"type": "array", "items": {"$ref": "#/$defs/field"}},
-          "request": {
-            "type": "object",
-            "required": ["method", "path"],
-            "properties": {
-              "method": {"enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]},
-              "path": {"type": "string"},
-              "headers": {"type": "object"},
-              "query": {"type": "object"},
-              "body": {},
-              "body_type": {"enum": ["json", "form"]}
-            }
-          },
-          "output": {
+        "allOf": [
+          {"$ref": "#/$defs/action"},
+          {
             "type": "object",
             "properties": {
-              "path": {"type": "string"},
-              "pick": {"type": "array", "items": {"type": "string"}},
-              "value": {}
-            }
-          },
-          "pagination": {
-            "type": "object",
-            "required": ["type", "items_path"],
-            "properties": {
-              "type": {"enum": ["cursor", "offset", "link"]},
-              "items_path": {"type": "string"},
-              "page_size": {"type": "integer", "minimum": 1},
-              "limit_param": {"type": "string"},
-              "cursor_param": {"type": "string"},
-              "next_path": {"type": "string"},
-              "offset_param": {"type": "string"}
+              "poll": {
+                "type": "object",
+                "properties": {
+                  "every": {"type": "integer", "minimum": 1, "default": 5},
+                  "id": {"type": "string", "minLength": 1, "default": "id"}
+                }
+              }
             }
           }
-        }
+        ]
       }
     }
   },
   "$defs": {
+    "action": {
+    "type": "object",
+    "required": ["name", "request"],
+    "properties": {
+      "name": {"type": "string", "minLength": 1},
+      "description": {"type": "string"},
+      "fields": {"type": "array", "items": {"$ref": "#/$defs/field"}},
+      "request": {
+        "type": "object",
+        "required": ["method", "path"],
+        "properties": {
+          "method": {"enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]},
+          "path": {"type": "string"},
+          "headers": {"type": "object"},
+          "query": {"type": "object"},
+          "body": {},
+          "body_type": {"enum": ["json", "form"]}
+        }
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "path": {"type": "string"},
+          "pick": {"type": "array", "items": {"type": "string"}},
+          "value": {}
+        }
+      },
+      "pagination": {
+        "type": "object",
+        "required": ["type", "items_path"],
+        "properties": {
+          "type": {"enum": ["cursor", "offset", "link"]},
+          "items_path": {"type": "string"},
+          "page_size": {"type": "integer", "minimum": 1},
+          "limit_param": {"type": "string"},
+          "cursor_param": {"type": "string"},
+          "next_path": {"type": "string"},
+          "offset_param": {"type": "string"}
+        }
+      }
+    }
+  },
     "field": {
       "type": "object",
       "required": ["name"],

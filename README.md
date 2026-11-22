@@ -30,7 +30,7 @@ Add `bobbin` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:bobbin, "~> 0.3"}
+    {:bobbin, "~> 0.4"}
   ]
 end
 ```
@@ -66,6 +66,12 @@ actions:
       - {name: id, label: Item ID}
     request: {method: GET, path: "items/{{fields.id}}"}
     output: {pick: [id, name]}
+
+triggers:
+  - name: New Item
+    request: {method: GET, path: items}
+    output: {path: data}
+    poll: {every: 5, id: id}   # starts the flow once for each item it hasn't seen
 ```
 
 Requests are built with `{{fields.<name>}}` and `{{credential.<name>}}`, empty values
