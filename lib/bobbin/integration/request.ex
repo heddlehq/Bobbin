@@ -225,7 +225,17 @@ defmodule Bobbin.Integration.Request do
     end
   end
 
-  def render(map, vars) when is_map(map), do: Map.new(map, fn {k, v} -> {k, render(v, vars)} end)
+  # `_merge` takes a map, usually from a json field, and spreads it into the map that
+  # holds it, so custom fields sit next to the fixed ones. Its keys win.
+  def render(map, vars) when is_map(map) do
+    rendered = Map.new(map, fn {k, v} -> {k, render(v, vars)} end)
+
+    case Map.pop(rendered, "_merge") do
+      {extra, rest} when is_map(extra) -> Map.merge(rest, extra)
+      {_none, rest} -> rest
+    end
+  end
+
   def render(list, vars) when is_list(list), do: Enum.map(list, &render(&1, vars))
   def render(value, _vars), do: value
 

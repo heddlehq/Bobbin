@@ -297,6 +297,16 @@ reads as an ISO 8601 date (`2026-01-31` or `2026-01-31T09:00:00Z`). With `format
 that count time that way; a date without an offset is read as UTC. An empty field is
 left out of the request.
 
+A `_merge` key spreads a map, usually a `json` field, into the map that holds it, so
+custom fields sit next to the fixed ones (its keys win):
+
+```yaml
+body:
+  fields:
+    summary: "{{fields.summary}}"
+    _merge: "{{fields.custom_fields}}"   # {"customfield_10010": "x"}
+```
+
 Options can come from the service, so people pick a channel or a spreadsheet by name
 instead of pasting its ID. `options_from` takes a `request`, the `path` of the items
 in the answer, and the keys of each item that are its `label` and `value` (`name`

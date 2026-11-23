@@ -133,6 +133,17 @@ defmodule Bobbin.Integration.RequestTest do
     assert {:ok, _} = Request.run(acme, "Find", fields, %{}, plug: plug)
   end
 
+  test "_merge spreads a map into the one that holds it" do
+    vars = %{"fields" => %{"custom" => %{"customfield_1" => "x", "summary" => "B"}, "s" => "A"}}
+    body = %{"fields" => %{"summary" => "{{fields.s}}", "_merge" => "{{fields.custom}}"}}
+
+    assert Request.render(body, vars) == %{
+             "fields" => %{"summary" => "B", "customfield_1" => "x"}
+           }
+
+    assert Request.render(%{"a" => 1, "_merge" => "{{fields.none}}"}, vars) == %{"a" => 1}
+  end
+
   test "an option written as a number goes as a number" do
     yaml = """
     id: acme
