@@ -416,6 +416,11 @@
                       "prefix": {
                         "type": "string"
                       },
+                      "basic": {
+                        "type": "object",
+                        "description": "The user and password the service calls with, in Authorization.",
+                        "properties": {"username": {"type": "string"}, "password": {"type": "string"}}
+                      },
                       "secret": {
                         "type": "string"
                       },

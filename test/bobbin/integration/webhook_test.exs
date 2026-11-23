@@ -51,6 +51,10 @@ defmodule Bobbin.Integration.WebhookTest do
       webhook:
         signature: {header: X-Gitlab-Token, token: "{{webhook.secret}}"}
 
+    - name: Deal Added
+      webhook:
+        signature: {basic: {username: heddle, password: "{{webhook.secret}}"}}
+
     - name: Card Moved
       webhook:
         signature:
@@ -195,6 +199,34 @@ defmodule Bobbin.Integration.WebhookTest do
 
     assert {:error, :signature} =
              Webhook.receive(i, "New Merge Request", event.("no"), webhook, %{})
+  end
+
+  test "a service that calls with a user and a password is checked against them", %{
+    integration: i
+  } do
+    event = fn auth -> %{headers: %{"authorization" => auth}, body: "{}", query: %{}} end
+    webhook = %{"secret" => "s3"}
+    good = "Basic " <> Base.encode64("heddle:s3")
+
+    assert {:ok, [%{}]} = Webhook.receive(i, "Deal Added", event.(good), webhook, %{})
+
+    assert {:error, :signature} =
+             Webhook.receive(
+               i,
+               "Deal Added",
+               event.("Basic " <> Base.encode64("heddle:no")),
+               webhook,
+               %{}
+             )
+
+    assert {:error, :signature} =
+             Webhook.receive(
+               i,
+               "Deal Added",
+               %{headers: %{}, body: "{}", query: %{}},
+               webhook,
+               %{}
+             )
   end
 
   test "a HEAD that checks the address is answered, and events are signed with the address",

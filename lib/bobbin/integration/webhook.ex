@@ -41,7 +41,9 @@ defmodule Bobbin.Integration.Webhook do
   (`t=(?<timestamp>\\d+),v1=(?<signature>\\w+)`), and `tolerance` in seconds.
 
   A service that sends the secret itself in a header, like GitLab, takes `token` in
-  place of `secret`: `{header: X-Gitlab-Token, token: "{{webhook.secret}}"}`.
+  place of `secret`: `{header: X-Gitlab-Token, token: "{{webhook.secret}}"}`. One that
+  calls with a user and a password, like Pipedrive, takes `basic`:
+  `{basic: {username: heddle, password: "{{webhook.secret}}"}}`.
 
   `challenge` answers services that check the address first: `query` names the
   parameter to send back (`hub.challenge`), with `token_query` and `token` to check,
@@ -189,6 +191,17 @@ defmodule Bobbin.Integration.Webhook do
   ## Signatures
 
   defp verified?(nil, _event, _vars), do: true
+
+  # A service that calls with a user and a password, like Pipedrive.
+  defp verified?(%{"basic" => basic}, event, vars) do
+    %{"username" => user, "password" => password} =
+      Map.merge(%{"username" => "", "password" => ""}, Request.render(basic, vars))
+
+    sent = header(event, "authorization")
+
+    text(password) != "" and sent != nil and
+      equal?(sent, "Basic " <> Base.encode64("#{user}:#{password}"))
+  end
 
   # A service that sends the secret itself, like GitLab's X-Gitlab-Token.
   defp verified?(%{"token" => token} = config, event, vars) do

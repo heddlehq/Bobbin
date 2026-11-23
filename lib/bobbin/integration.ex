@@ -435,8 +435,11 @@ defmodule Bobbin.Integration do
       %{"header" => header, "token" => token} when is_binary(header) and is_binary(token) ->
         errors
 
+      %{"basic" => %{"password" => password}} when is_binary(password) ->
+        errors
+
       _other ->
-        ["#{where}.signature needs a header and a secret (or a token)" | errors]
+        ["#{where}.signature needs a header and a secret (or a token, or basic)" | errors]
     end
   end
 

@@ -576,6 +576,14 @@ signature:
 is `sha1`, `sha256` (the default) or `sha512`, and `encoding` is `hex` (the default)
 or `base64`.
 
+A service that calls with a user and a password in `Authorization`, like Pipedrive,
+takes `basic`; give the service the same two when registering:
+
+```yaml
+signature:
+  basic: {username: heddle, password: "{{webhook.secret}}"}
+```
+
 Some services check the address before they send anything. `challenge` answers them:
 
 ```yaml
