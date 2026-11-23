@@ -24,8 +24,8 @@ defmodule Bobbin.Integration.Definition do
   it has the `integration` id, the `resource` the action works on (or nil), and
   `i18n`, its texts in each language the manifest has, see `translations/3`.
 
-  Each of its `ui_fields` has `type` (`text`, `select`, `multiselect`, `boolean`,
-  `json` or `date`; a `number` is `text`), `required`, and `options_from: true` when
+  Each of its `ui_fields` has `type` (as the manifest says, but a `number` is
+  `text`), `required`, and `options_from: true` when
   the host lists its options from the service, see
   `Bobbin.Integration.Runtime.options/4`.
   """
