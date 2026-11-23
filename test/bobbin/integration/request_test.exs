@@ -177,6 +177,32 @@ defmodule Bobbin.Integration.RequestTest do
              %{"p" => ["+55 1", "+55 2"]}
   end
 
+  test "a {} written in the manifest is sent, while one left empty by its fields isn't" do
+    yaml = """
+    id: drive
+    name: Drive
+    version: 1.0.0
+    base_url: https://drive.test/
+    actions:
+      - name: Create Folder
+        fields: [{name: name, label: Name}, {name: color, label: Color}]
+        request:
+          method: POST
+          path: children
+          body: {name: "{{fields.name}}", folder: {}, style: {color: "{{fields.color}}"}, tags: [{}]}
+    """
+
+    {:ok, drive} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      assert JSON.decode!(body) == %{"name" => "A", "folder" => %{}, "tags" => [%{}]}
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} = Request.run(drive, "Create Folder", %{"name" => "A"}, %{}, plug: plug)
+  end
+
   test "_merge spreads a map into the one that holds it" do
     vars = %{"fields" => %{"custom" => %{"customfield_1" => "x", "summary" => "B"}, "s" => "A"}}
     body = %{"fields" => %{"summary" => "{{fields.s}}", "_merge" => "{{fields.custom}}"}}

@@ -614,7 +614,16 @@ defmodule Bobbin.Integration.Request do
   end
 
   defp put_body(options, %{body: body}, vars),
-    do: {:ok, Keyword.put(options, :json, body |> render(vars) |> compact() |> unfile())}
+    do:
+      {:ok,
+       Keyword.put(options, :json, body |> keep_empty() |> render(vars) |> compact() |> unfile())}
+
+  # A {} written in the manifest, like Microsoft Graph's `folder: {}`, is sent, while
+  # compact/1 leaves out a map its empty fields left empty. unfile/1 puts it back.
+  defp keep_empty(map) when map == %{}, do: :bobbin_empty
+  defp keep_empty(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, keep_empty(v)} end)
+  defp keep_empty(list) when is_list(list), do: Enum.map(list, &keep_empty/1)
+  defp keep_empty(value), do: value
 
   defp part({:bobbin_file, ref}) do
     with {:ok, content} <- Bobbin.Files.read(ref) do
@@ -650,6 +659,7 @@ defmodule Bobbin.Integration.Request do
   defp content_binary(content), do: content |> Enum.to_list() |> IO.iodata_to_binary()
 
   defp unfile({:bobbin_file, ref}), do: ref
+  defp unfile(:bobbin_empty), do: %{}
   defp unfile(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, unfile(v)} end)
   defp unfile(list) when is_list(list), do: Enum.map(list, &unfile/1)
   defp unfile(value), do: value
