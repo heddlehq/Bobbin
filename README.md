@@ -76,15 +76,16 @@ triggers:
 
 Requests are built with `{{fields.<name>}}` and `{{credential.<name>}}`, empty values
 are left out, and pagination comes in three presets: `cursor`, `offset` and `link`.
-See `Bobbin.Integration` for the whole format, and
-[`priv/integration.schema.json`](priv/integration.schema.json) for editors that read
+The [manifest guide](https://hexdocs.pm/bobbin/manifest.html) walks through each part,
+`Bobbin.Integration` has the whole format, and
+[`priv/integration.schema.json`](https://github.com/heddlehq/Bobbin/blob/main/priv/integration.schema.json) for editors that read
 JSON Schema.
 
 For what a manifest can't express, like a database driver, write the nodes in Elixir
 with `Bobbin.Node` and `Bobbin.Service`: the credential, the `success` and `error`
 outputs, templates and files work as in Heddle's own nodes, and `Bobbin.Connections`
 keeps a driver's connection open between runs. The host (Heddle) plugs in through
-`Bobbin.Host`.
+`Bobbin.Host`. See [Integrations in Elixir](https://hexdocs.pm/bobbin/packages.html).
 
 ## 🤝 Community & Contributing
 
@@ -95,4 +96,4 @@ We believe in building in public. Join our community to discuss ideas, track our
 
 ## License
 
-Bobbin is open-source software licensed under the [MIT license](LICENSE).
+Bobbin is open-source software licensed under the [MIT license](https://github.com/heddlehq/Bobbin/blob/main/LICENSE).

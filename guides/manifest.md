@@ -1,0 +1,256 @@
+# Writing a manifest
+
+An integration without code is one YAML file. Heddle reads it and makes a node for
+each action, which sends an HTTP request to the service and answers through its
+`success` or `error` output.
+
+You can write one in Heddle's **Integrations** page, under **Create integration**, or
+in a file, checking it with the Mix tasks:
+
+```bash
+mix bobbin.new my_service                   # writes my_service.yaml to fill in
+mix bobbin.validate my_service.yaml         # says what is wrong, if anything
+mix bobbin.run my_service.yaml "Get Item" \
+  --field id=42 --credential api_key=$KEY   # runs an action against the real API
+```
+
+## The service
+
+```yaml
+id: my_service
+name: My Service
+version: 1.0.0
+description: What My Service does, in one line.
+icon: hero-puzzle-piece
+base_url: https://api.example.com/v1/
+```
+
+| Key | What it is |
+| --- | --- |
+| `id` | Lowercase letters, digits and `_`. It can't change once installed. |
+| `name` | What the sidebar shows. Nodes are called "Name: Action". |
+| `version` | Like `1.0.0`. Raise it when you change the manifest. |
+| `icon` | A [heroicon](https://heroicons.com), like `hero-envelope` or `hero-cube-solid`. |
+| `base_url` | The start of every request's address. |
+
+## Templates
+
+Values in `{{ }}` are filled in when the node runs: `{{fields.x}}` is what the node's
+field `x` holds, and `{{credential.x}}` a value of the credential. A string that is a
+single placeholder keeps the value's type. A value that ends up empty is left out of
+the query and the body, so optional fields need no extra syntax.
+
+Templates work in `request`, `credential.auth` and `output.value`.
+
+## The credential
+
+What a person fills in once, in Heddle's Credentials, and every node of the
+integration uses. A field with `secret: true` is encrypted and never shown again.
+
+A token in the `Authorization` header:
+
+```yaml
+credential:
+  label: My Service
+  fields:
+    - name: api_key
+      label: API key
+      secret: true
+  auth:
+    type: bearer
+    token: "{{credential.api_key}}"
+```
+
+A key in a header of its own:
+
+```yaml
+auth:
+  type: header
+  name: X-Api-Key
+  value: "{{credential.api_key}}"
+```
+
+A user and a password:
+
+```yaml
+auth:
+  type: basic
+  username: "{{credential.username}}"
+  password: "{{credential.password}}"
+```
+
+OAuth 2.0, with a Connect button. Heddle runs the authorization, renews the token and
+passes it as `{{credential.access_token}}`:
+
+```yaml
+credential:
+  label: My Service
+  fields:
+    - name: client_id
+      label: Client ID
+    - name: client_secret
+      label: Client secret
+      secret: true
+  auth:
+    type: oauth2
+    authorize_url: https://example.com/oauth/authorize
+    token_url: https://example.com/oauth/token
+    scopes: [read, write]
+```
+
+The other types:
+
+- `query`: the key goes in the address, with `name` and `value`.
+- `none`: for public APIs. The integration then needs no credential.
+
+## Actions
+
+Each action is a node. Its `fields` are what a person fills in the node, and its
+`request` is what the node sends.
+
+```yaml
+actions:
+  - name: Create Contact
+    description: Creates a contact.
+    fields:
+      - name: email
+        label: Email
+        required: true
+      - name: plan
+        label: Plan
+        type: select
+        default: free
+        options:
+          - {label: Free, value: free}
+          - {label: Pro, value: pro}
+    request:
+      method: POST
+      path: contacts
+      body:
+        email: "{{fields.email}}"
+        plan: "{{fields.plan}}"
+```
+
+| Key | What it is |
+| --- | --- |
+| `fields[].type` | `text` (the default), `textarea`, `number` or `select`, with `options`. |
+| `request.method` | `GET`, `POST`, `PUT`, `PATCH` or `DELETE`. |
+| `request.path` | Joined to `base_url`. It may hold templates. |
+| `request.query` | The parameters of the address, as a map. |
+| `request.headers` | Headers of this request, besides the credential's. |
+| `request.body_type` | `json`, the default, or `form`. |
+
+Filters in the address:
+
+```yaml
+request:
+  method: GET
+  path: contacts
+  query:
+    email: "{{fields.email}}"
+    limit: 50
+```
+
+## Responses
+
+The node leaves the body of the response in `result`. `output` keeps only what
+matters, and an answer that isn't 2xx goes to the `error` output.
+
+Part of the body, and some keys of each item:
+
+```yaml
+output:
+  path: data.items
+  pick: [id, name, email]
+```
+
+A value of your own, in place of the body:
+
+```yaml
+output:
+  value:
+    id: "{{fields.id}}"
+    deleted: true
+```
+
+For APIs that answer 200 when something failed, `errors` names a field of the body
+that must be `true`, and the one that says why. It goes at the top of the manifest and
+counts for every action, like Slack's `{"ok": false}`:
+
+```yaml
+errors:
+  ok_path: ok
+  message_path: error
+```
+
+## Pagination
+
+With `pagination`, the node asks for every page and returns all the items together,
+from `items_path`.
+
+A cursor the answer returns:
+
+```yaml
+pagination:
+  type: cursor
+  items_path: data
+  cursor_param: cursor
+  next_path: next_cursor
+  page_size: 100
+  limit_param: limit
+```
+
+An offset that grows:
+
+```yaml
+pagination:
+  type: offset
+  items_path: results
+  offset_param: offset
+  limit_param: limit
+  page_size: 100
+```
+
+The `Link` header, like GitHub's:
+
+```yaml
+pagination:
+  type: link
+  page_size: 100
+  limit_param: per_page
+```
+
+## Triggers
+
+A trigger starts a flow when something new shows up in the service. It's written like
+an action whose output is a list, plus `poll`. Heddle calls its request every few
+minutes and starts the flow once for each item it hasn't seen.
+
+```yaml
+triggers:
+  - name: New Item
+    description: Starts the flow for each new item.
+    request:
+      method: GET
+      path: items
+      query:
+        sort: created_desc
+    output:
+      path: items
+    poll:
+      every: 5   # minutes, 5 when left out
+      id: id     # the key that tells items apart, "id" when left out
+```
+
+The first call only records what's already there, so a new trigger doesn't start a
+flow for every old item.
+
+## Sharing it
+
+To list an integration in Heddle's catalog, add it as `integrations/<id>/integration.yaml`
+and open a pull request in [heddlehq/integrations](https://github.com/heddlehq/integrations).
+
+The whole format is in `Bobbin.Integration`, and in
+[`priv/integration.schema.json`](https://github.com/heddlehq/Bobbin/blob/main/priv/integration.schema.json)
+for editors that read JSON Schema. When a manifest isn't enough, see
+[Integrations in Elixir](packages.md).
