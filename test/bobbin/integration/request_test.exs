@@ -90,6 +90,13 @@ defmodule Bobbin.Integration.RequestTest do
              "projects/group%2Fapp/x/a%3Fb%23c%20d"
   end
 
+  test "a value marked path keeps its slashes, but not dot segments" do
+    vars = %{"fields" => %{"repo" => "/owner/my app/../x/"}}
+
+    assert Request.render_path("repos/{{fields.repo | path}}/issues", vars) ==
+             "repos/owner/my%20app/x/issues"
+  end
+
   test "renders templates, keeping the type of a single placeholder" do
     vars = %{"fields" => %{"n" => 3, "s" => "a"}, "credential" => %{}}
 

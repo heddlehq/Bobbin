@@ -70,6 +70,10 @@ the query and the body, so optional fields need no extra syntax.
 
 Templates work in `request`, `credential.auth` and `output.value`.
 
+In `request.path` a value stays one segment: `/`, `?` and spaces are encoded, so
+`group/app` goes as `group%2Fapp`. When it should span segments, like GitHub's
+`owner/name`, write `{{fields.repo | path}}`.
+
 ## The credential
 
 What a person fills in once, in Heddle's Credentials, and every node of the

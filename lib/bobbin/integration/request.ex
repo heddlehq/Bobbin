@@ -11,6 +11,9 @@ defmodule Bobbin.Integration.Request do
 
   @max_pages 100
   @placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*\}\}/
+
+  # In a path, `{{fields.repo | path}}` lets a value like owner/name span segments.
+  @path_placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(path)\s*)?\}\}/
   @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*\}\}\z/
 
   @doc """
@@ -231,10 +234,21 @@ defmodule Bobbin.Integration.Request do
   `group%2Fproject`) and can't reach another address.
   """
   def render_path(path, vars) when is_binary(path) do
-    Regex.replace(@placeholder, path, fn _match, scope, name ->
-      vars |> get_in([scope, name]) |> text() |> URI.encode(&URI.char_unreserved?/1)
+    Regex.replace(@path_placeholder, path, fn
+      _match, scope, name, "" ->
+        vars |> get_in([scope, name]) |> text() |> segment()
+
+      _match, scope, name, _path ->
+        vars
+        |> get_in([scope, name])
+        |> text()
+        |> String.split("/")
+        |> Enum.reject(&(&1 in ["", ".", ".."]))
+        |> Enum.map_join("/", &segment/1)
     end)
   end
+
+  defp segment(value), do: URI.encode(value, &URI.char_unreserved?/1)
 
   defp text(nil), do: ""
   defp text(value) when is_binary(value), do: value
