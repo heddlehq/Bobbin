@@ -46,7 +46,7 @@ base_url: https://api.example.com/v1/
 | `name` | What the sidebar shows. Nodes are called "Name: Action". |
 | `version` | Like `1.0.0`. Raise it when you change the manifest. |
 | `icon` | A [heroicon](https://heroicons.com), like `hero-envelope` or `hero-cube-solid`. Shown when there is no `logo`. |
-| `logo` | The service's own logo: an SVG, written in the manifest, of at most 30 KB. No scripts, event handlers or `foreignObject`. |
+| `logo` | The service's own logo: an SVG, written in the manifest, of at most 30 KB. No scripts, event handlers or `foreignObject`. With it, the nodes' icon is `logo-<id>`, the class the host shows the logo under. |
 | `base_url` | The start of every request's address. It may take values of the credential, see below. |
 | `headers` | Headers of every request, like `{Intercom-Version: "2.11"}`. A request's own headers win. |
 

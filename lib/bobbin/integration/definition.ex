@@ -35,7 +35,7 @@ defmodule Bobbin.Integration.Definition do
       title: manifest.name,
       category: String.to_atom(manifest.category),
       credential: manifest.credential && manifest.credential.kind,
-      icon: manifest.icon
+      icon: icon(manifest)
     }
 
     service
@@ -48,6 +48,13 @@ defmodule Bobbin.Integration.Definition do
       i18n: translations(manifest, "actions", action)
     })
   end
+
+  @doc """
+  The icon of `manifest`'s nodes: `logo-<id>` when it has a `logo`, which the host
+  shows the logo under (Heddle makes a CSS class of each one), or else its `icon`.
+  """
+  def icon(%{logo: logo, id: id}) when is_binary(logo), do: "logo-" <> id
+  def icon(manifest), do: manifest.icon
 
   @trigger_color "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
 
@@ -68,7 +75,7 @@ defmodule Bobbin.Integration.Definition do
       category: String.to_atom(manifest.category),
       color: @trigger_color,
       description: trigger.description,
-      icon: manifest.icon,
+      icon: icon(manifest),
       inputs: [],
       outputs: [:exec],
       show: true,

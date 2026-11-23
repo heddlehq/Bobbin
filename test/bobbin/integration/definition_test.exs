@@ -72,4 +72,22 @@ defmodule Bobbin.Integration.DefinitionTest do
     refute Map.has_key?(issue, :webhook)
     assert issue.i18n == %{"pt-BR" => %{name: nil, description: nil, fields: %{}}}
   end
+
+  test "with a logo, the nodes' icon is logo-<id>, which the host shows the logo under" do
+    {:ok, plain} = Integration.parse(@manifest)
+
+    assert Definition.definition(plain, Integration.action(plain, "Create Issue")).icon ==
+             "hero-puzzle-piece"
+
+    logo = ~s(logo: '<svg xmlns="http://www.w3.org/2000/svg"></svg>'\n)
+    {:ok, manifest} = Integration.parse(logo <> @manifest)
+
+    assert Definition.definition(manifest, Integration.action(manifest, "Create Issue")).icon ==
+             "logo-forge"
+
+    assert Definition.trigger_definition(manifest, Integration.trigger(manifest, "New Issue")).icon ==
+             "logo-forge"
+
+    assert Definition.icon(manifest) == "logo-forge"
+  end
 end
