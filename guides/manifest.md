@@ -286,7 +286,7 @@ actions:
 | `request.method` | `GET`, `POST`, `PUT`, `PATCH` or `DELETE`. |
 | `request.path` | Joined to `base_url`. It may hold templates. |
 | `request.query` | The parameters of the address, as a map. |
-| `request.headers` | Headers of this request, besides the credential's. |
+| `request.headers` | Headers of this request, besides the credential's. A map goes as JSON, in ASCII, like Dropbox's `Dropbox-API-Arg: {path: "{{fields.path}}"}`. |
 | `request.body_type` | `json`, the default, `form`, `multipart`, `related` or `binary`, see Files. |
 | `request.base_url` | This request's own address, in place of the manifest's `base_url`, for a service with a host for uploads, like Dropbox's `https://content.dropboxapi.com/2/`. |
 

@@ -488,6 +488,31 @@ defmodule Bobbin.Integration.Request do
 
   ## Request
 
+  # A map goes as JSON, with what isn't ASCII escaped, as headers can't carry it.
+  defp header_value(value) when is_map(value) or is_list(value) do
+    value
+    |> JSON.encode!()
+    |> String.replace(~r/[^\x00-\x7F]/u, fn char ->
+      char
+      |> String.to_charlist()
+      |> hd()
+      |> utf16_escape()
+    end)
+  end
+
+  defp header_value(value), do: value
+
+  defp utf16_escape(code) when code > 0xFFFF do
+    code = code - 0x10000
+
+    utf16_escape(0xD800 + Bitwise.bsr(code, 10)) <>
+      utf16_escape(0xDC00 + Bitwise.band(code, 0x3FF))
+  end
+
+  defp utf16_escape(code),
+    do:
+      "\\u" <> (code |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(4, "0"))
+
   defp build(base_url, headers, action, vars, req_options) do
     request = action.request
 
@@ -500,7 +525,7 @@ defmodule Bobbin.Integration.Request do
         |> Map.merge(request.headers)
         |> render(vars)
         |> compact()
-        |> Map.to_list(),
+        |> Enum.map(fn {key, value} -> {key, header_value(value)} end),
       retry: false
     ]
 

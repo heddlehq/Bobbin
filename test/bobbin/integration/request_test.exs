@@ -321,6 +321,36 @@ defmodule Bobbin.Integration.RequestTest do
     assert {:ok, _} = Request.run(acme, "Ping", %{}, %{}, plug: plug)
   end
 
+  test "a header written as a map goes as JSON, in ASCII, like Dropbox's Dropbox-API-Arg" do
+    yaml = """
+    id: box
+    name: Box
+    version: 1.0.0
+    base_url: https://content.test/
+    actions:
+      - name: Download
+        fields: [{name: path, label: Path}, {name: rev, label: Rev}]
+        request:
+          method: POST
+          path: download
+          headers: {Dropbox-API-Arg: {path: "{{fields.path}}", rev: "{{fields.rev}}"}}
+    """
+
+    {:ok, box} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      send(self(), {:arg, Plug.Conn.get_req_header(conn, "dropbox-api-arg")})
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} =
+             Request.run(box, "Download", %{"path" => "/Relatório \"1\" 📄.pdf"}, %{}, plug: plug)
+
+    assert_received {:arg, [arg]}
+    assert arg == ~S({"path":"/Relat\u00f3rio \"1\" \ud83d\udcc4.pdf"})
+    assert JSON.decode!(arg) == %{"path" => "/Relatório \"1\" 📄.pdf"}
+  end
+
   describe "poll/5" do
     test "returns each item with its id, leaving out items without one", %{integration: i} do
       plug = fn conn ->
