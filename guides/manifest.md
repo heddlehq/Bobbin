@@ -403,7 +403,7 @@ errors:
 ## Pagination
 
 With `pagination`, the node asks for every page and returns all the items together,
-from `items_path`.
+from `items_path`, or the whole answer when it's a list and `items_path` is left out.
 
 A cursor the answer returns:
 

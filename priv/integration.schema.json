@@ -586,8 +586,7 @@
         "pagination": {
           "type": "object",
           "required": [
-            "type",
-            "items_path"
+            "type"
           ],
           "properties": {
             "type": {
@@ -736,9 +735,8 @@
             "pagination": {
               "type": "object",
               "required": [
-                "type",
-                "items_path"
-              ],
+            "type"
+          ],
               "properties": {
                 "type": {
                   "enum": [

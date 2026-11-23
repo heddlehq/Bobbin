@@ -22,6 +22,9 @@ defmodule Bobbin.Integration.PaginationTest do
     - name: List Zero Based
       request: {method: GET, path: tickets}
       pagination: {type: page, items_path: results, page_param: p, first_page: 0, page_size: 2}
+    - name: List Linked
+      request: {method: GET, path: tickets}
+      pagination: {type: link, limit_param: per_page, page_size: 2}
   """
 
   setup do
@@ -55,5 +58,31 @@ defmodule Bobbin.Integration.PaginationTest do
 
     assert_received {:page, nil, nil}
     assert_received {:page, "1", nil}
+  end
+
+  test "follows the Link header, taking a list answer whole", %{integration: i} do
+    plug = fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      send(self(), {:page, conn.query_params["page"]})
+
+      case conn.query_params["page"] do
+        nil ->
+          conn
+          |> Plug.Conn.put_resp_header(
+            "link",
+            ~s(<https://desk.test/api/tickets?page=2&per_page=2>; rel="next")
+          )
+          |> Req.Test.json([%{"id" => 1}, %{"id" => 2}])
+
+        "2" ->
+          Req.Test.json(conn, [%{"id" => 3}])
+      end
+    end
+
+    assert {:ok, [%{"id" => 1}, %{"id" => 2}, %{"id" => 3}]} =
+             Request.run(i, "List Linked", %{}, %{"token" => "t"}, plug: plug)
+
+    assert_received {:page, nil}
+    assert_received {:page, "2"}
   end
 end

@@ -486,12 +486,12 @@ defmodule Bobbin.Integration do
       nil ->
         errors
 
-      %{"type" => type, "items_path" => _} when type in @pagination_types ->
+      %{"type" => type} when type in @pagination_types ->
         errors
 
       _other ->
         [
-          "#{where}.pagination needs a type (#{Enum.join(@pagination_types, ", ")}) and items_path"
+          "#{where}.pagination needs a type (#{Enum.join(@pagination_types, ", ")})"
           | errors
         ]
     end
