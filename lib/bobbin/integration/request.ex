@@ -615,7 +615,7 @@ defmodule Bobbin.Integration.Request do
       items = List.wrap(dig(response.body, pagination["items_path"]))
       acc = acc ++ items
 
-      case next_page(response, pagination, items, size, page) do
+      case next_page(response, pagination, items, size, page) |> same_host(request, pagination) do
         nil -> {:ok, acc}
         next -> pages(request, integration, pagination, size, next, page + 1, acc)
       end
@@ -635,6 +635,21 @@ defmodule Bobbin.Integration.Request do
 
   defp page_request(request, %{"type" => "link"}, _size, url, _page),
     do: %{request | url: URI.parse(url), options: Map.delete(request.options, :params)}
+
+  # A next page's address may be relative, and is followed only on the same host,
+  # so the credential never goes elsewhere.
+  defp same_host(nil, _request, _pagination), do: nil
+
+  defp same_host(url, request, %{"type" => "link"}) do
+    next = URI.merge(request.url, url)
+
+    if next.scheme == request.url.scheme and next.host == request.url.host and
+         next.port == request.url.port,
+       do: URI.to_string(next),
+       else: nil
+  end
+
+  defp same_host(next, _request, _pagination), do: next
 
   defp put_param(request, key, value) do
     params = request.options |> Map.get(:params, []) |> List.keydelete(key, 0)
@@ -656,6 +671,14 @@ defmodule Bobbin.Integration.Request do
   # starts: `first_page` (1 by default) says what number that was.
   defp next_page(_response, %{"type" => "page"} = pagination, items, size, page) do
     if length(items) < size, do: nil, else: (pagination["first_page"] || 1) + page
+  end
+
+  defp next_page(response, %{"type" => "link", "next_path" => path}, _items, _size, _page)
+       when is_binary(path) do
+    case dig(response.body, path) do
+      next when is_binary(next) and next != "" -> next
+      _none -> nil
+    end
   end
 
   defp next_page(response, %{"type" => "link"}, _items, _size, _page) do

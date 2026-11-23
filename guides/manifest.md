@@ -449,6 +449,10 @@ pagination:
   limit_param: per_page
 ```
 
+Or the next page's address in the answer, at `next_path`, like Twilio's
+`next_page_uri`. It may be relative. Either way, Bobbin only follows an address on the
+service's own host.
+
 ## Triggers
 
 A trigger starts a flow when something new shows up in the service. It's written like

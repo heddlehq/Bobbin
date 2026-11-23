@@ -25,6 +25,9 @@ defmodule Bobbin.Integration.PaginationTest do
     - name: List Linked
       request: {method: GET, path: tickets}
       pagination: {type: link, limit_param: per_page, page_size: 2}
+    - name: List Body Linked
+      request: {method: GET, path: tickets}
+      pagination: {type: link, items_path: tickets, next_path: next_page_uri}
   """
 
   setup do
@@ -84,5 +87,30 @@ defmodule Bobbin.Integration.PaginationTest do
 
     assert_received {:page, nil}
     assert_received {:page, "2"}
+  end
+
+  test "a link in the body may be relative", %{integration: i} do
+    plug = fn conn ->
+      send(self(), {:path, conn.request_path, conn.query_string})
+
+      case conn.query_string do
+        "" -> Req.Test.json(conn, %{"tickets" => [1], "next_page_uri" => "/api/tickets?Page=1"})
+        "Page=1" -> Req.Test.json(conn, %{"tickets" => [2], "next_page_uri" => nil})
+      end
+    end
+
+    assert {:ok, [1, 2]} = Request.run(i, "List Body Linked", %{}, %{"token" => "t"}, plug: plug)
+    assert_received {:path, "/api/tickets", "Page=1"}
+  end
+
+  test "a link to another host isn't followed, so the token stays home", %{integration: i} do
+    plug = fn conn ->
+      send(self(), {:host, conn.host})
+      Req.Test.json(conn, %{"tickets" => [1], "next_page_uri" => "https://evil.test/steal"})
+    end
+
+    assert {:ok, [1]} = Request.run(i, "List Body Linked", %{}, %{"token" => "t"}, plug: plug)
+    assert_received {:host, "desk.test"}
+    refute_received {:host, "evil.test"}
   end
 end
