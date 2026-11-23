@@ -28,6 +28,9 @@ defmodule Bobbin.Integration.PaginationTest do
     - name: List Body Linked
       request: {method: GET, path: tickets}
       pagination: {type: link, items_path: tickets, next_path: next_page_uri}
+    - name: List Graph
+      request: {method: GET, path: me/messages}
+      pagination: {type: link, items_path: value, next_path: "@odata.nextLink"}
     - name: List Issues
       fields: [{name: team}]
       request:
@@ -116,6 +119,24 @@ defmodule Bobbin.Integration.PaginationTest do
 
     assert {:ok, [1, 2]} = Request.run(i, "List Body Linked", %{}, %{"token" => "t"}, plug: plug)
     assert_received {:path, "/api/tickets", "Page=1"}
+  end
+
+  test "a key with a dot, like Microsoft Graph's @odata.nextLink, is read whole",
+       %{integration: i} do
+    plug = fn conn ->
+      case conn.query_string do
+        "" ->
+          Req.Test.json(conn, %{
+            "value" => [1],
+            "@odata.nextLink" => "https://desk.test/api/me/messages?$skip=1"
+          })
+
+        "$skip=1" ->
+          Req.Test.json(conn, %{"value" => [2]})
+      end
+    end
+
+    assert {:ok, [1, 2]} = Request.run(i, "List Graph", %{}, %{"token" => "t"}, plug: plug)
   end
 
   test "a link to another host isn't followed, so the token stays home", %{integration: i} do

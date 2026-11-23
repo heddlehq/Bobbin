@@ -638,15 +638,32 @@ defmodule Bobbin.Integration.Request do
   defp dig(value, nil), do: value
   defp dig(value, ""), do: value
 
-  defp dig(value, path) do
-    path
-    |> String.split(".")
-    |> Enum.reduce(value, fn
-      key, map when is_map(map) -> Map.get(map, key)
-      key, list when is_list(list) -> with {i, ""} <- Integer.parse(key), do: Enum.at(list, i)
-      _key, _other -> nil
+  defp dig(value, path), do: dig_keys(value, String.split(path, "."))
+
+  # A key may have dots of its own, like Microsoft Graph's `@odata.nextLink`: the
+  # longest run of parts that is a key of the map wins.
+  defp dig_keys(value, []), do: value
+
+  defp dig_keys(map, keys) when is_map(map) do
+    Enum.find_value(length(keys)..1//-1, fn n ->
+      {key, rest} = Enum.split(keys, n)
+      key = Enum.join(key, ".")
+      if Map.has_key?(map, key), do: {:found, dig_keys(map[key], rest)}
     end)
+    |> case do
+      {:found, value} -> value
+      nil -> nil
+    end
   end
+
+  defp dig_keys(list, [key | rest]) when is_list(list) do
+    case Integer.parse(key) do
+      {i, ""} -> list |> Enum.at(i) |> dig_keys(rest)
+      _other -> nil
+    end
+  end
+
+  defp dig_keys(_value, _keys), do: nil
 
   ## Pagination
 
