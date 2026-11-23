@@ -364,7 +364,7 @@ defmodule Bobbin.Integration.Request do
     options = [
       method: request.method |> String.downcase() |> String.to_atom(),
       url: base_url <> render_path(request.path, vars),
-      params: request.query |> render(vars) |> compact() |> Map.to_list(),
+      params: request.query |> render(vars) |> compact() |> Enum.map(&query_pair/1),
       headers: request.headers |> render(vars) |> compact() |> Map.to_list(),
       retry: false
     ]
@@ -377,6 +377,17 @@ defmodule Bobbin.Integration.Request do
       {:ok, options |> Keyword.merge(req_options) |> Req.new()}
     end
   end
+
+  # A list of plain values goes as a,b,c; a map, or a list holding one, as JSON.
+  defp query_pair({key, value}) when is_map(value), do: {key, JSON.encode!(value)}
+
+  defp query_pair({key, value}) when is_list(value) do
+    if Enum.all?(value, &(is_binary(&1) or is_number(&1) or is_boolean(&1))),
+      do: {key, Enum.join(value, ",")},
+      else: {key, JSON.encode!(value)}
+  end
+
+  defp query_pair(pair), do: pair
 
   defp put_body(options, %{body: nil}, _vars), do: {:ok, options}
 

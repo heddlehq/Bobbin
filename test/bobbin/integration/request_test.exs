@@ -105,6 +105,33 @@ defmodule Bobbin.Integration.RequestTest do
     assert Request.render(%{"a" => ["{{fields.s}}"]}, vars) == %{"a" => ["a"]}
   end
 
+  test "a map in the query goes as JSON, a list as a,b" do
+    yaml = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    base_url: https://acme.test/
+    actions:
+      - name: Find
+        fields:
+          - {name: filters, label: Filters, type: json}
+          - {name: tags, label: Tags, type: multiselect, options: [{label: A, value: a}, {label: B, value: b}]}
+        request: {method: GET, path: things, query: {filters: "{{fields.filters}}", tags: "{{fields.tags}}"}}
+    """
+
+    {:ok, acme} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.query_params["filters"] == ~s({"type":"equal"})
+      assert conn.query_params["tags"] == "a,b"
+      Req.Test.json(conn, %{})
+    end
+
+    fields = %{"filters" => ~s({"type": "equal"}), "tags" => ["a", "b"]}
+    assert {:ok, _} = Request.run(acme, "Find", fields, %{}, plug: plug)
+  end
+
   describe "poll/5" do
     test "returns each item with its id, leaving out items without one", %{integration: i} do
       plug = fn conn ->
