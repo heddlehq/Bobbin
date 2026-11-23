@@ -122,11 +122,16 @@ defmodule Bobbin.IntegrationTest do
     assert Map.keys(action) |> Enum.sort() ==
              ~w(description fields name output pagination request resource)
 
-    assert schema["properties"]["actions"]["items"] == %{"$ref" => "#/$defs/action"}
+    assert schema["properties"]["actions"]["items"] == %{
+             "allOf" => [%{"$ref" => "#/$defs/action"}, %{"required" => ["request"]}]
+           }
 
     assert [%{"$ref" => "#/$defs/action"}, poll] =
              schema["properties"]["triggers"]["items"]["allOf"]
 
     assert Map.keys(poll["properties"]["poll"]["properties"]) |> Enum.sort() == ~w(every id)
+
+    assert Map.keys(poll["properties"]["webhook"]["properties"]) |> Enum.sort() ==
+             ~w(challenge output register signature unregister)
   end
 end

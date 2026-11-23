@@ -1,0 +1,175 @@
+defmodule Bobbin.Integration.WebhookTest do
+  use ExUnit.Case, async: true
+
+  alias Bobbin.Integration
+  alias Bobbin.Integration.Webhook
+
+  @manifest """
+  id: forge
+  name: Forge
+  version: 1.0.0
+  base_url: https://api.forge.test/
+  credential:
+    auth: {type: bearer, token: "{{credential.token}}"}
+  actions:
+    - {name: Ping, request: {method: GET, path: ping}}
+  triggers:
+    - name: New Push
+      fields:
+        - {name: repo, label: Repository, required: true}
+      webhook:
+        register:
+          request:
+            method: POST
+            path: "repos/{{fields.repo}}/hooks"
+            body:
+              url: "{{webhook.url}}"
+              secret: "{{webhook.secret}}"
+              events: [push]
+          id_path: id
+        unregister:
+          request: {method: DELETE, path: "repos/{{fields.repo}}/hooks/{{webhook.id}}"}
+        signature:
+          header: X-Forge-Signature
+          prefix: "sha256="
+          secret: "{{webhook.secret}}"
+        output:
+          path: commits
+
+    - name: New Payment
+      webhook:
+        signature:
+          header: Pay-Signature
+          pattern: "t=(?<timestamp>\\\\d+),v1=(?<signature>[0-9a-f]+)"
+          message: "{{request.timestamp}}.{{request.body}}"
+          secret: "{{credential.signing_secret}}"
+          tolerance: 300
+        challenge:
+          query: hub.challenge
+  """
+
+  setup do
+    {:ok, integration} = Integration.parse(@manifest)
+    %{integration: integration}
+  end
+
+  defp sign(secret, message),
+    do: :crypto.mac(:hmac, :sha256, secret, message) |> Base.encode16(case: :lower)
+
+  test "registers Heddle's address with the service, and keeps what it answers", %{
+    integration: i
+  } do
+    plug = fn conn ->
+      assert conn.method == "POST"
+      assert conn.request_path == "/repos/acme/hooks"
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+      assert JSON.decode!(body) == %{
+               "url" => "https://heddle.test/hooks/1",
+               "secret" => "s3",
+               "events" => ["push"]
+             }
+
+      Req.Test.json(conn, %{"id" => 99})
+    end
+
+    assert {:ok, %{"id" => "99", "url" => "https://heddle.test/hooks/1", "secret" => "s3"}} =
+             Webhook.register(
+               i,
+               "New Push",
+               %{"repo" => "acme"},
+               %{"token" => "t"},
+               %{"url" => "https://heddle.test/hooks/1", "secret" => "s3"},
+               plug: plug
+             )
+  end
+
+  test "removes it when the flow stops", %{integration: i} do
+    plug = fn conn ->
+      assert conn.method == "DELETE"
+      assert conn.request_path == "/repos/acme/hooks/99"
+      Plug.Conn.send_resp(conn, 204, "")
+    end
+
+    assert :ok =
+             Webhook.unregister(i, "New Push", %{"repo" => "acme"}, %{}, %{"id" => "99"},
+               plug: plug
+             )
+  end
+
+  test "a trigger the user registers by hand has nothing to register", %{integration: i} do
+    assert {:ok, :manual} = Webhook.register(i, "New Payment", %{}, %{}, %{"url" => "u"})
+    assert :ok = Webhook.unregister(i, "New Payment", %{}, %{}, %{})
+  end
+
+  test "takes an event with a good signature, and passes on its items", %{integration: i} do
+    body = ~s({"commits": [{"id": "a"}, {"id": "b"}]})
+
+    event = %{
+      headers: %{"x-forge-signature" => "sha256=" <> sign("s3", body)},
+      body: body,
+      query: %{}
+    }
+
+    assert {:ok, [%{"id" => "a"}, %{"id" => "b"}]} =
+             Webhook.receive(i, "New Push", event, %{"secret" => "s3"}, %{})
+  end
+
+  test "refuses an event with a bad or missing signature", %{integration: i} do
+    body = ~s({"commits": []})
+
+    for headers <- [%{"x-forge-signature" => "sha256=00"}, %{}] do
+      assert {:error, :signature} =
+               Webhook.receive(
+                 i,
+                 "New Push",
+                 %{headers: headers, body: body, query: %{}},
+                 %{"secret" => "s3"},
+                 %{}
+               )
+    end
+  end
+
+  test "checks a signature with a timestamp, and refuses an old one", %{integration: i} do
+    body = ~s({"amount": 10})
+    now = System.system_time(:second)
+
+    event = fn t ->
+      header = "t=#{t},v1=" <> sign("whsec", "#{t}.#{body}")
+      %{headers: %{"pay-signature" => header}, body: body, query: %{}}
+    end
+
+    assert {:ok, [%{"amount" => 10}]} =
+             Webhook.receive(i, "New Payment", event.(now), %{}, %{"signing_secret" => "whsec"})
+
+    assert {:error, :signature} =
+             Webhook.receive(i, "New Payment", event.(now - 600), %{}, %{
+               "signing_secret" => "whsec"
+             })
+  end
+
+  test "answers the service's challenge", %{integration: i} do
+    event = %{headers: %{}, body: "", query: %{"hub.challenge" => "abc"}}
+    assert {:reply, 200, "abc"} = Webhook.receive(i, "New Payment", event, %{}, %{})
+  end
+
+  test "a trigger needs a request or a webhook" do
+    yaml = """
+    id: x
+    name: X
+    version: 1.0.0
+    base_url: https://x.test/
+    actions:
+      - {name: A, request: {method: GET, path: a}}
+    triggers:
+      - {name: T}
+      - name: W
+        webhook:
+          register: {id_path: id}
+    """
+
+    assert {:error, errors} = Integration.parse(yaml)
+    assert "triggers[0] needs a request to poll or a webhook" in errors
+    assert "triggers[1].webhook.register needs a request with a method and a path" in errors
+  end
+end

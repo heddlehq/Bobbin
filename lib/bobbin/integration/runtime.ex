@@ -7,7 +7,7 @@ defmodule Bobbin.Integration.Runtime do
   """
 
   alias Bobbin.Integration, as: Manifest
-  alias Bobbin.Integration.Request
+  alias Bobbin.Integration.{Request, Webhook}
   alias Bobbin.Template
   alias Bobbin.Service, as: Integration
 
@@ -71,6 +71,59 @@ defmodule Bobbin.Integration.Runtime do
         Integration.req_options([])
       )
     end)
+  end
+
+  @doc """
+  Registers Heddle's address for the webhook trigger `trigger_name`, when a flow is
+  activated. `webhook` holds the `url` and a `secret` Heddle made; keep what this
+  returns for `receive_webhook/4` and `unregister_webhook/4`. See
+  `Bobbin.Integration.Webhook`.
+  """
+  def register_webhook(manifest, trigger_name, context, webhook) do
+    trigger = Manifest.trigger(manifest, trigger_name)
+
+    with_credential(manifest, context, fn credential ->
+      Webhook.register(
+        manifest,
+        trigger_name,
+        if(trigger, do: fields(trigger, context), else: %{}),
+        credential,
+        webhook,
+        Integration.req_options([])
+      )
+    end)
+  end
+
+  @doc "Removes the webhook when the flow stops."
+  def unregister_webhook(manifest, trigger_name, context, webhook) do
+    trigger = Manifest.trigger(manifest, trigger_name)
+
+    with_credential(manifest, context, fn credential ->
+      Webhook.unregister(
+        manifest,
+        trigger_name,
+        if(trigger, do: fields(trigger, context), else: %{}),
+        credential,
+        webhook,
+        Integration.req_options([])
+      )
+    end)
+  end
+
+  @doc """
+  Checks an event that reached the address of a webhook trigger, and returns the items
+  that each start a run. See `Bobbin.Integration.Webhook.receive/5`.
+  """
+  def receive_webhook(manifest, trigger_name, context, event, webhook) do
+    case manifest.credential do
+      %{kind: kind} ->
+        with {:ok, credential} <- Integration.credential(context, kind) do
+          Webhook.receive(manifest, trigger_name, event, webhook, credential)
+        end
+
+      nil ->
+        Webhook.receive(manifest, trigger_name, event, webhook, %{})
+    end
   end
 
   @doc """

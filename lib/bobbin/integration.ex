@@ -343,9 +343,22 @@ defmodule Bobbin.Integration do
     |> Enum.with_index()
     |> Enum.reduce(errors, fn
       {trigger, index}, errors when is_map(trigger) ->
-        errors
-        |> check_action(trigger, "triggers[#{index}]")
-        |> check_poll(trigger["poll"], "triggers[#{index}]")
+        where = "triggers[#{index}]"
+
+        case trigger do
+          %{"webhook" => webhook} ->
+            errors
+            |> check_action(trigger, where, trigger["request"] != nil)
+            |> check_webhook(webhook, "#{where}.webhook")
+
+          %{"request" => _request} ->
+            errors
+            |> check_action(trigger, where)
+            |> check_poll(trigger["poll"], where)
+
+          _neither ->
+            ["#{where} needs a request to poll or a webhook" | errors]
+        end
 
       {_trigger, index}, errors ->
         ["triggers[#{index}] must be a map" | errors]
@@ -353,6 +366,36 @@ defmodule Bobbin.Integration do
   end
 
   defp check_triggers(errors, _other), do: ["triggers must be a list" | errors]
+
+  defp check_webhook(errors, webhook, where) when is_map(webhook) do
+    errors =
+      Enum.reduce(~w(register unregister), errors, fn key, errors ->
+        case webhook[key] do
+          nil ->
+            errors
+
+          %{"request" => %{"method" => method, "path" => path}}
+          when method in @methods and is_binary(path) ->
+            errors
+
+          _other ->
+            ["#{where}.#{key} needs a request with a method and a path" | errors]
+        end
+      end)
+
+    case webhook["signature"] do
+      nil ->
+        errors
+
+      %{"header" => header, "secret" => secret} when is_binary(header) and is_binary(secret) ->
+        errors
+
+      _other ->
+        ["#{where}.signature needs a header and a secret" | errors]
+    end
+  end
+
+  defp check_webhook(errors, _webhook, where), do: ["#{where} must be a map" | errors]
 
   defp check_poll(errors, nil, _where), do: errors
 
@@ -373,10 +416,12 @@ defmodule Bobbin.Integration do
 
   defp check_poll(errors, _poll, where), do: ["#{where}.poll must be a map" | errors]
 
-  defp check_action(errors, action, index) when is_map(action) and is_integer(index),
+  defp check_action(errors, action, where, request? \\ true)
+
+  defp check_action(errors, action, index, _request?) when is_map(action) and is_integer(index),
     do: check_action(errors, action, "actions[#{index}]")
 
-  defp check_action(errors, action, where) when is_map(action) do
+  defp check_action(errors, action, where, request?) when is_map(action) do
     request = action["request"]
 
     errors =
@@ -386,6 +431,9 @@ defmodule Bobbin.Integration do
 
     errors =
       case request do
+        nil when not request? ->
+          errors
+
         %{"method" => method, "path" => path} when method in @methods and is_binary(path) ->
           errors
 
@@ -411,7 +459,7 @@ defmodule Bobbin.Integration do
     end
   end
 
-  defp check_action(errors, _action, index) when is_integer(index),
+  defp check_action(errors, _action, index, _request?) when is_integer(index),
     do: ["actions[#{index}] must be a map" | errors]
 
   defp required_in(errors, map, key, where) do
@@ -501,6 +549,31 @@ defmodule Bobbin.Integration do
     trigger
     |> normalize_action()
     |> Map.put(:poll, %{every: poll["every"] || 5, id: poll["id"] || "id"})
+    |> Map.put(:webhook, normalize_webhook(trigger["webhook"]))
+  end
+
+  defp normalize_webhook(nil), do: nil
+
+  defp normalize_webhook(webhook) do
+    step = fn
+      nil ->
+        nil
+
+      step ->
+        %{
+          request: normalize_request(step["request"]),
+          id_path: step["id_path"],
+          secret_path: step["secret_path"]
+        }
+    end
+
+    %{
+      register: step.(webhook["register"]),
+      unregister: step.(webhook["unregister"]),
+      signature: webhook["signature"],
+      challenge: webhook["challenge"],
+      output: webhook["output"] || %{}
+    }
   end
 
   defp normalize_action(action) do
@@ -514,6 +587,8 @@ defmodule Bobbin.Integration do
       pagination: action["pagination"]
     }
   end
+
+  defp normalize_request(nil), do: nil
 
   defp normalize_request(request) do
     %{

@@ -405,6 +405,70 @@ triggers:
 The first call only records what's already there, so a new trigger doesn't start a
 flow for every old item.
 
+### Webhooks
+
+When the service can call Heddle, a trigger takes a `webhook` instead of `request`
+and `poll`. Heddle gives each active trigger an address and a secret. `register` tells
+the service about them when the flow is activated, `unregister` when it stops, and
+`signature` checks that each event came from the service. `output` picks the items
+of an event; each one starts the flow:
+
+```yaml
+triggers:
+  - name: New Push
+    fields:
+      - {name: repo, label: Repository}
+    webhook:
+      register:
+        request:
+          method: POST
+          path: "repos/{{fields.repo}}/hooks"
+          body:
+            config: {url: "{{webhook.url}}", secret: "{{webhook.secret}}"}
+            events: [push]
+        id_path: id
+      unregister:
+        request: {method: DELETE, path: "repos/{{fields.repo}}/hooks/{{webhook.id}}"}
+      signature:
+        header: X-Hub-Signature-256
+        prefix: "sha256="
+        secret: "{{webhook.secret}}"
+      output:
+        path: commits
+```
+
+Without `register`, Heddle shows the address and the person pastes it in the service.
+A service that makes its own secret returns it at `secret_path`.
+
+A signature with a timestamp, like Stripe's `t=…,v1=…`, takes a `pattern` with the
+named groups `signature` and `timestamp`, the `message` that was signed, and how many
+seconds old an event may be:
+
+```yaml
+signature:
+  header: Stripe-Signature
+  pattern: "t=(?<timestamp>\\d+),v1=(?<signature>[0-9a-f]+)"
+  message: "{{request.timestamp}}.{{request.body}}"
+  secret: "{{credential.signing_secret}}"
+  tolerance: 300
+```
+
+`timestamp_header` reads the timestamp from a header of its own instead. `algorithm`
+is `sha1`, `sha256` (the default) or `sha512`, and `encoding` is `hex` (the default)
+or `base64`.
+
+Some services check the address before they send anything. `challenge` answers them:
+
+```yaml
+challenge:
+  query: hub.challenge          # sends this parameter back
+  token_query: hub.verify_token # when it matches token
+  token: "{{webhook.secret}}"
+# or, when the challenge comes in the body:
+challenge:
+  path: challenge
+```
+
 ## Other languages
 
 `i18n` holds the texts in other languages, by locale. Heddle shows them to people who

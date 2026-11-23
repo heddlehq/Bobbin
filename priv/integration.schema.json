@@ -254,7 +254,16 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "#/$defs/action"
+        "allOf": [
+          {
+            "$ref": "#/$defs/action"
+          },
+          {
+            "required": [
+              "request"
+            ]
+          }
+        ]
       }
     },
     "triggers": {
@@ -282,6 +291,182 @@
                     "default": "id"
                   }
                 }
+              },
+              "webhook": {
+                "type": "object",
+                "description": "The service calls Heddle: register and unregister tell it about the address, signature checks each event, output picks its items. See Bobbin.Integration.Webhook.",
+                "properties": {
+                  "register": {
+                    "type": "object",
+                    "required": [
+                      "request"
+                    ],
+                    "properties": {
+                      "request": {
+                        "type": "object",
+                        "required": [
+                          "method",
+                          "path"
+                        ],
+                        "properties": {
+                          "method": {
+                            "enum": [
+                              "GET",
+                              "POST",
+                              "PUT",
+                              "PATCH",
+                              "DELETE"
+                            ]
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "headers": {
+                            "type": "object"
+                          },
+                          "query": {
+                            "type": "object"
+                          },
+                          "body": {},
+                          "body_type": {
+                            "enum": [
+                              "json",
+                              "form"
+                            ]
+                          }
+                        }
+                      },
+                      "id_path": {
+                        "type": "string"
+                      },
+                      "secret_path": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "unregister": {
+                    "type": "object",
+                    "required": [
+                      "request"
+                    ],
+                    "properties": {
+                      "request": {
+                        "type": "object",
+                        "required": [
+                          "method",
+                          "path"
+                        ],
+                        "properties": {
+                          "method": {
+                            "enum": [
+                              "GET",
+                              "POST",
+                              "PUT",
+                              "PATCH",
+                              "DELETE"
+                            ]
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "headers": {
+                            "type": "object"
+                          },
+                          "query": {
+                            "type": "object"
+                          },
+                          "body": {},
+                          "body_type": {
+                            "enum": [
+                              "json",
+                              "form"
+                            ]
+                          }
+                        }
+                      },
+                      "id_path": {
+                        "type": "string"
+                      },
+                      "secret_path": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "signature": {
+                    "type": "object",
+                    "required": [
+                      "header",
+                      "secret"
+                    ],
+                    "properties": {
+                      "header": {
+                        "type": "string"
+                      },
+                      "prefix": {
+                        "type": "string"
+                      },
+                      "secret": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "pattern": {
+                        "type": "string"
+                      },
+                      "timestamp_header": {
+                        "type": "string"
+                      },
+                      "algorithm": {
+                        "enum": [
+                          "sha1",
+                          "sha256",
+                          "sha512"
+                        ]
+                      },
+                      "encoding": {
+                        "enum": [
+                          "hex",
+                          "base64"
+                        ]
+                      },
+                      "tolerance": {
+                        "type": "integer"
+                      }
+                    }
+                  },
+                  "challenge": {
+                    "type": "object",
+                    "properties": {
+                      "query": {
+                        "type": "string"
+                      },
+                      "token_query": {
+                        "type": "string"
+                      },
+                      "token": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "output": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "pick": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -293,8 +478,7 @@
     "action": {
       "type": "object",
       "required": [
-        "name",
-        "request"
+        "name"
       ],
       "properties": {
         "name": {

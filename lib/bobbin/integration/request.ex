@@ -10,8 +10,8 @@ defmodule Bobbin.Integration.Request do
   alias Bobbin.Integration.Auth
 
   @max_pages 100
-  @placeholder ~r/\{\{\s*(fields|credential|auth|request)\.([A-Za-z0-9_]+)\s*\}\}/
-  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request)\.([A-Za-z0-9_]+)\s*\}\}\z/
+  @placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*\}\}/
+  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*\}\}\z/
 
   @doc """
   Runs the action called `action_name`.
@@ -46,6 +46,9 @@ defmodule Bobbin.Integration.Request do
     case Integration.trigger(integration, trigger_name) do
       nil ->
         {:error, "#{integration.name} has no trigger called #{trigger_name}."}
+
+      %{request: nil} ->
+        {:error, "#{trigger_name} waits for #{integration.name} to send an event."}
 
       trigger ->
         case perform(integration, trigger, fields, credential, req_options) do
@@ -110,11 +113,17 @@ defmodule Bobbin.Integration.Request do
 
   defp item_id(_item, _path), do: nil
 
-  defp perform(integration, action, fields, credential, req_options) do
+  @doc false
+  # Sends a request shaped like an action's (`fields`, `request`, `output`,
+  # `pagination`), with `extra` templates like `webhook`.
+  def send_request(integration, action, fields, credential, req_options, extra \\ %{}),
+    do: perform(integration, action, fields, credential, req_options, extra)
+
+  defp perform(integration, action, fields, credential, req_options, extra \\ %{}) do
     credential = credential || %{}
 
     with {:ok, values} <- field_values(action, fields),
-         vars = %{"fields" => values, "credential" => credential},
+         vars = Map.merge(extra, %{"fields" => values, "credential" => credential}),
          {:ok, base_url} <- base_url(integration, credential) do
       send = fn ->
         request = build(base_url, action, vars, req_options)
