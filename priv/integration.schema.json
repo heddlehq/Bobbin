@@ -29,6 +29,11 @@
     "icon": {
       "type": "string"
     },
+    "logo": {
+      "type": "string",
+      "description": "The service's own logo, an SVG of at most 30 KB, without scripts.",
+      "pattern": "^\\s*<svg[\\s\\S]*</svg>\\s*$"
+    },
     "category": {
       "type": "string"
     },

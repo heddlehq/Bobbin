@@ -35,6 +35,8 @@ name: My Service
 version: 1.0.0
 description: What My Service does, in one line.
 icon: hero-puzzle-piece
+logo: |
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#4F46E5" d="..."/></svg>
 base_url: https://api.example.com/v1/
 ```
 
@@ -43,7 +45,8 @@ base_url: https://api.example.com/v1/
 | `id` | Lowercase letters, digits and `_`. It can't change once installed. |
 | `name` | What the sidebar shows. Nodes are called "Name: Action". |
 | `version` | Like `1.0.0`. Raise it when you change the manifest. |
-| `icon` | A [heroicon](https://heroicons.com), like `hero-envelope` or `hero-cube-solid`. |
+| `icon` | A [heroicon](https://heroicons.com), like `hero-envelope` or `hero-cube-solid`. Shown when there is no `logo`. |
+| `logo` | The service's own logo: an SVG, written in the manifest, of at most 30 KB. No scripts, event handlers or `foreignObject`. |
 | `base_url` | The start of every request's address. It may take values of the credential, see below. |
 | `headers` | Headers of every request, like `{Intercom-Version: "2.11"}`. A request's own headers win. |
 

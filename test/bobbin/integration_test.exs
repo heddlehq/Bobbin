@@ -109,6 +109,47 @@ defmodule Bobbin.IntegrationTest do
     end
   end
 
+  test "a logo is the service's own SVG, and the icon stays as the fallback" do
+    yaml = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    icon: hero-ticket
+    logo: |
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#F00" d="M0 0h24v24H0z"/></svg>
+    base_url: https://acme.test/
+    actions:
+      - {name: Ping, request: {method: GET, path: ping}}
+    """
+
+    assert {:ok, %{icon: "hero-ticket", logo: "<svg" <> _}} = Integration.parse(yaml)
+
+    no_logo = String.replace(yaml, ~r/logo: \|\n.*\n/, "")
+    assert {:ok, %{logo: nil}} = Integration.parse(no_logo)
+  end
+
+  test "a logo must be an SVG without scripts, and small" do
+    base = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    base_url: https://acme.test/
+    actions:
+      - {name: Ping, request: {method: GET, path: ping}}
+    """
+
+    for logo <- [
+          "<png/>",
+          ~s{<svg onload="alert(1)"></svg>},
+          "<svg><script>alert(1)</script></svg>",
+          "<svg>" <> String.duplicate("a", 40_000) <> "</svg>"
+        ] do
+      yaml = base <> "logo: |\n  " <> logo <> "\n"
+      assert {:error, [message]} = Integration.parse(yaml)
+      assert message =~ "logo"
+    end
+  end
+
   test "refuses YAML aliases, which yamerl reads wrong" do
     yaml = """
     id: acme

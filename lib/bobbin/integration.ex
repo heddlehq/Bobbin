@@ -147,6 +147,7 @@ defmodule Bobbin.Integration do
           version: String.t(),
           description: String.t(),
           icon: String.t(),
+          logo: String.t() | nil,
           category: String.t(),
           base_url: String.t(),
           headers: map(),
@@ -235,6 +236,7 @@ defmodule Bobbin.Integration do
         ~r/\A(https?:\/\/|\{\{\s*credential\.)/,
         "a URL starting with http"
       )
+      |> check_logo(map["logo"])
       |> check_i18n(map["i18n"])
       |> check_credential(map["credential"])
       |> check_actions(map["actions"])
@@ -264,6 +266,35 @@ defmodule Bobbin.Integration do
   def trigger(integration, name), do: Enum.find(integration.triggers, &(&1.name == name))
 
   ## Checks
+
+  # A logo is shown as an image, where an SVG runs no script, but a manifest is
+  # read by people too, so one with scripts or handlers is refused anyway.
+  @logo_bytes 30_000
+
+  defp check_logo(errors, nil), do: errors
+
+  defp check_logo(errors, logo) when is_binary(logo) do
+    logo = String.trim(logo)
+
+    cond do
+      not (String.starts_with?(logo, "<svg") and String.ends_with?(logo, "</svg>")) ->
+        ["logo must be an SVG, from <svg to </svg>" | errors]
+
+      Regex.match?(~r/<script|\son[a-z]+\s*=|javascript:|<foreignObject/i, logo) ->
+        ["logo can't have scripts, event handlers or foreignObject" | errors]
+
+      byte_size(logo) > @logo_bytes ->
+        ["logo must be at most #{div(@logo_bytes, 1000)} KB" | errors]
+
+      true ->
+        errors
+    end
+  end
+
+  defp check_logo(errors, _logo), do: ["logo must be an SVG, from <svg to </svg>" | errors]
+
+  defp logo(nil), do: nil
+  defp logo(logo), do: String.trim(logo)
 
   defp required(errors, map, key, format \\ nil, hint \\ nil) do
     case map[key] do
@@ -569,6 +600,7 @@ defmodule Bobbin.Integration do
       version: map["version"],
       description: map["description"] || "",
       icon: map["icon"] || "hero-puzzle-piece",
+      logo: logo(map["logo"]),
       category: map["category"] || id,
       base_url: map["base_url"],
       headers: map["headers"] || %{},
