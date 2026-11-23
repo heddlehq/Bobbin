@@ -40,9 +40,13 @@ defmodule Bobbin.Integration.Webhook do
   a `timestamp_header` or a `pattern` with named groups `signature` and `timestamp`
   (`t=(?<timestamp>\\d+),v1=(?<signature>\\w+)`), and `tolerance` in seconds.
 
+  A service that sends the secret itself in a header, like GitLab, takes `token` in
+  place of `secret`: `{header: X-Gitlab-Token, token: "{{webhook.secret}}"}`.
+
   `challenge` answers services that check the address first: `query` names the
   parameter to send back (`hub.challenge`), with `token_query` and `token` to check,
-  or `path` a key of the body (`challenge`).
+  `path` a key of the body (`challenge`), or `method` a request answered 200 with
+  nothing (Trello's `HEAD`).
   """
 
   alias Bobbin.Integration
@@ -166,6 +170,13 @@ defmodule Bobbin.Integration.Webhook do
     end
   end
 
+  # Trello checks the address with a HEAD request before it takes it.
+  defp challenge(%{"method" => method}, event, _body, _vars) do
+    if String.upcase(to_string(event[:method])) == String.upcase(method),
+      do: {:reply, 200, ""},
+      else: :none
+  end
+
   defp challenge(%{"path" => path}, _event, body, _vars) when is_map(body) do
     case dig(body, path) do
       value when is_binary(value) -> {:reply, 200, value}
@@ -178,6 +189,13 @@ defmodule Bobbin.Integration.Webhook do
   ## Signatures
 
   defp verified?(nil, _event, _vars), do: true
+
+  # A service that sends the secret itself, like GitLab's X-Gitlab-Token.
+  defp verified?(%{"token" => token} = config, event, vars) do
+    expected = text(Request.render(token, vars))
+    sent = header(event, config["header"])
+    expected != "" and sent != nil and equal?(sent, expected)
+  end
 
   defp verified?(config, event, vars) do
     header = header(event, config["header"])
@@ -203,7 +221,7 @@ defmodule Bobbin.Integration.Webhook do
   end
 
   defp expected(config, body) do
-    algorithm = String.to_existing_atom(config["algorithm"] || "sha256")
+    algorithm = Bobbin.Integration.Auth.hmac_atom(config["algorithm"] || "sha256")
     message = if config["message"], do: text(config["message"]), else: body
     mac = :crypto.mac(:hmac, algorithm, text(config["secret"]), message)
 

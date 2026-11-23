@@ -394,10 +394,6 @@
                   },
                   "signature": {
                     "type": "object",
-                    "required": [
-                      "header",
-                      "secret"
-                    ],
                     "properties": {
                       "header": {
                         "type": "string"
@@ -432,8 +428,27 @@
                       },
                       "tolerance": {
                         "type": "integer"
+                      },
+                      "token": {
+                        "type": "string",
+                        "description": "The secret the service sends as it is, in the header."
                       }
-                    }
+                    },
+                    "required": [
+                      "header"
+                    ],
+                    "oneOf": [
+                      {
+                        "required": [
+                          "secret"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "token"
+                        ]
+                      }
+                    ]
                   },
                   "challenge": {
                     "type": "object",
@@ -448,6 +463,9 @@
                         "type": "string"
                       },
                       "path": {
+                        "type": "string"
+                      },
+                      "method": {
                         "type": "string"
                       }
                     }

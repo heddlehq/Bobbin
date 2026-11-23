@@ -225,6 +225,17 @@ defmodule Bobbin.Integration.Request do
   def render(list, vars) when is_list(list), do: Enum.map(list, &render(&1, vars))
   def render(value, _vars), do: value
 
+  @doc """
+  Renders the path of a request: each value is encoded as one segment, so a `/`, `?`
+  or `#` in it stays part of the value (GitLab's `group/project` becomes
+  `group%2Fproject`) and can't reach another address.
+  """
+  def render_path(path, vars) when is_binary(path) do
+    Regex.replace(@placeholder, path, fn _match, scope, name ->
+      vars |> get_in([scope, name]) |> text() |> URI.encode(&URI.char_unreserved?/1)
+    end)
+  end
+
   defp text(nil), do: ""
   defp text(value) when is_binary(value), do: value
   defp text(value) when is_number(value) or is_boolean(value), do: to_string(value)
@@ -338,7 +349,7 @@ defmodule Bobbin.Integration.Request do
 
     options = [
       method: request.method |> String.downcase() |> String.to_atom(),
-      url: base_url <> render(request.path, vars),
+      url: base_url <> render_path(request.path, vars),
       params: request.query |> render(vars) |> compact() |> Map.to_list(),
       headers: request.headers |> render(vars) |> compact() |> Map.to_list(),
       retry: false

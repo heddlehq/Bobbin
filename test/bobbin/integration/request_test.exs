@@ -83,6 +83,13 @@ defmodule Bobbin.Integration.RequestTest do
     assert {:error, "Acme has no action called Nope."} = run(i, "Nope", %{}, & &1)
   end
 
+  test "a value in the path stays one segment" do
+    vars = %{"fields" => %{"project" => "group/app", "q" => "a?b#c d"}}
+
+    assert Request.render_path("projects/{{fields.project}}/x/{{fields.q}}", vars) ==
+             "projects/group%2Fapp/x/a%3Fb%23c%20d"
+  end
+
   test "renders templates, keeping the type of a single placeholder" do
     vars = %{"fields" => %{"n" => 3, "s" => "a"}, "credential" => %{}}
 

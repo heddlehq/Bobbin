@@ -388,11 +388,19 @@ defmodule Bobbin.Integration do
       nil ->
         errors
 
-      %{"header" => header, "secret" => secret} when is_binary(header) and is_binary(secret) ->
+      %{"header" => header, "secret" => secret} = signature
+      when is_binary(header) and is_binary(secret) ->
+        hmac = Bobbin.Integration.Auth.hmac_algorithms()
+
+        if Map.get(signature, "algorithm", "sha256") in hmac,
+          do: errors,
+          else: ["#{where}.signature.algorithm must be one of #{Enum.join(hmac, ", ")}" | errors]
+
+      %{"header" => header, "token" => token} when is_binary(header) and is_binary(token) ->
         errors
 
       _other ->
-        ["#{where}.signature needs a header and a secret" | errors]
+        ["#{where}.signature needs a header and a secret (or a token)" | errors]
     end
   end
 

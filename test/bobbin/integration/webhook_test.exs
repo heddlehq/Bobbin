@@ -46,6 +46,20 @@ defmodule Bobbin.Integration.WebhookTest do
           tolerance: 300
         challenge:
           query: hub.challenge
+
+    - name: New Merge Request
+      webhook:
+        signature: {header: X-Gitlab-Token, token: "{{webhook.secret}}"}
+
+    - name: Card Moved
+      webhook:
+        signature:
+          header: X-Trello-Webhook
+          algorithm: sha1
+          encoding: base64
+          message: "{{request.body}}{{webhook.url}}"
+          secret: "{{credential.app_secret}}"
+        challenge: {method: HEAD}
   """
 
   setup do
@@ -171,5 +185,32 @@ defmodule Bobbin.Integration.WebhookTest do
     assert {:error, errors} = Integration.parse(yaml)
     assert "triggers[0] needs a request to poll or a webhook" in errors
     assert "triggers[1].webhook.register needs a request with a method and a path" in errors
+  end
+
+  test "a service that sends the secret itself is checked against it", %{integration: i} do
+    event = fn token -> %{headers: %{"x-gitlab-token" => token}, body: "{}", query: %{}} end
+    webhook = %{"secret" => "s3"}
+
+    assert {:ok, [%{}]} = Webhook.receive(i, "New Merge Request", event.("s3"), webhook, %{})
+
+    assert {:error, :signature} =
+             Webhook.receive(i, "New Merge Request", event.("no"), webhook, %{})
+  end
+
+  test "a HEAD that checks the address is answered, and events are signed with the address",
+       %{integration: i} do
+    webhook = %{"url" => "https://heddle.test/hooks/t"}
+    credential = %{"app_secret" => "app"}
+
+    head = %{headers: %{}, body: "", query: %{}, method: "HEAD"}
+    assert {:reply, 200, ""} = Webhook.receive(i, "Card Moved", head, webhook, credential)
+
+    body = ~s({"action": {"type": "updateCard"}})
+    signature = :crypto.mac(:hmac, :sha, "app", body <> webhook["url"]) |> Base.encode64()
+
+    event = %{headers: %{"X-Trello-Webhook" => signature}, body: body, query: %{}, method: "POST"}
+
+    assert {:ok, [%{"action" => _}]} =
+             Webhook.receive(i, "Card Moved", event, webhook, credential)
   end
 end

@@ -21,6 +21,11 @@ defmodule Bobbin.Integration.Auth do
   def hmac_algorithms, do: @hmac_algorithms
 
   @doc false
+  # Erlang calls SHA-1 `:sha`.
+  def hmac_atom("sha1"), do: :sha
+  def hmac_atom(name) when name in @hmac_algorithms, do: String.to_existing_atom(name)
+
+  @doc false
   def create_table do
     :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
   end
@@ -281,7 +286,7 @@ defmodule Bobbin.Integration.Auth do
         Req.Request.put_header(req, String.downcase(k), text(v))
       end)
 
-    algorithm = String.to_existing_atom(auth["algorithm"] || "sha256")
+    algorithm = hmac_atom(auth["algorithm"] || "sha256")
     mac = :crypto.mac(:hmac, algorithm, text(auth["secret"]), text(auth["message"]))
 
     signature =
