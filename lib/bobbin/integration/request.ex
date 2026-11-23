@@ -300,20 +300,33 @@ defmodule Bobbin.Integration.Request do
     end
   end
 
-  defp cast(%{type: "multiselect"}, value) when is_binary(value) do
+  # An option written as a number in the manifest goes as a number, though a form
+  # sends it as text.
+  defp cast(%{type: "select", options: [_ | _] = options}, value)
+       when is_binary(value) or is_number(value) do
+    case value |> to_string() |> String.trim() do
+      "" -> {:ok, nil}
+      text -> {:ok, option_value(options, text)}
+    end
+  end
+
+  defp cast(%{type: "multiselect"} = field, value) when is_binary(value) do
     text = String.trim(value)
 
     case String.starts_with?(text, "[") && JSON.decode(text) do
       {:ok, list} when is_list(list) ->
-        {:ok, list}
+        cast(field, list)
 
       _comma_separated ->
         list = text |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
-        {:ok, if(list == [], do: nil, else: list)}
+        cast(field, list)
     end
   end
 
   defp cast(%{type: "multiselect"}, []), do: {:ok, nil}
+
+  defp cast(%{type: "multiselect", options: [_ | _] = options}, list) when is_list(list),
+    do: {:ok, Enum.map(list, &option_value(options, &1))}
 
   defp cast(%{type: "file"} = field, value) do
     case Bobbin.Files.ref(value) do
@@ -346,6 +359,13 @@ defmodule Bobbin.Integration.Request do
 
   defp cast(_field, value) when is_binary(value), do: {:ok, String.trim(value)}
   defp cast(_field, value), do: {:ok, value}
+
+  defp option_value(options, value) do
+    case Enum.find(options, &(is_map(&1) and to_string(&1["value"]) == to_string(value))) do
+      %{"value" => typed} -> typed
+      nil -> value
+    end
+  end
 
   defp integer(value) when is_integer(value), do: value
 

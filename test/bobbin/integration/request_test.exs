@@ -132,6 +132,32 @@ defmodule Bobbin.Integration.RequestTest do
     assert {:ok, _} = Request.run(acme, "Find", fields, %{}, plug: plug)
   end
 
+  test "an option written as a number goes as a number" do
+    yaml = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    base_url: https://acme.test/
+    actions:
+      - name: Make
+        fields:
+          - {name: status, label: Status, type: select, options: [{label: Open, value: 2}, {label: Closed, value: 5}]}
+          - {name: kinds, label: Kinds, type: multiselect, options: [{label: A, value: 1}, {label: B, value: b}]}
+        request: {method: POST, path: things, body: {status: "{{fields.status}}", kinds: "{{fields.kinds}}"}}
+    """
+
+    {:ok, acme} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      assert JSON.decode!(body) == %{"status" => 5, "kinds" => [1, "b"]}
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} =
+             Request.run(acme, "Make", %{"status" => "5", "kinds" => "1, b"}, %{}, plug: plug)
+  end
+
   describe "poll/5" do
     test "returns each item with its id, leaving out items without one", %{integration: i} do
       plug = fn conn ->

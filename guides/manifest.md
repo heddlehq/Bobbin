@@ -285,7 +285,8 @@ actions:
 | `request.headers` | Headers of this request, besides the credential's. |
 | `request.body_type` | `json`, the default, `form`, `multipart` or `binary`, see Files. |
 
-A `boolean` sends `true` or `false`. A `json` field sends what its JSON describes,
+A `select` sends its option's `value` as written, so `value: 2` goes as a number and
+`value: "2"` as text. A `boolean` sends `true` or `false`. A `json` field sends what its JSON describes,
 a map or a list, and fails when it isn't JSON. In `query`, a map goes as JSON text and a
 list of plain values as `a,b,c`. A `multiselect` sends a list, and
 takes one written as `a, b` too. A `datetime` sends the text as written, once it
