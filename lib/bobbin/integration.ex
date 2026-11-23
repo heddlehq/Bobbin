@@ -178,6 +178,35 @@ defmodule Bobbin.Integration do
   @doc "Parses and checks a manifest written in YAML."
   @spec parse(String.t()) :: {:ok, t()} | {:error, [String.t()]}
   def parse(yaml) do
+    case aliases(yaml) do
+      [] ->
+        decode(yaml)
+
+      lines ->
+        {:error,
+         Enum.map(
+           lines,
+           &"Line #{&1} uses a YAML alias (*name), which isn't supported. Write the value out."
+         )}
+    end
+  end
+
+  # yamerl resolves an alias of a mapping to its first key, so `*task_id`
+  # would quietly become "name". Quoted text and comments are skipped.
+  defp aliases(yaml) do
+    yaml
+    |> String.split("\n")
+    |> Enum.with_index(1)
+    |> Enum.filter(fn {line, _number} ->
+      line
+      |> String.replace(~r/"(?:[^"\\]|\\.)*"|'[^']*'/, "")
+      |> String.replace(~r/(^|\s)#.*$/, "")
+      |> String.match?(~r/(^\s*|:\s+|-\s+|[\[{,]\s*)\*[\w-]+\s*([,\]}]|$)/)
+    end)
+    |> Enum.map(fn {_line, number} -> number end)
+  end
+
+  defp decode(yaml) do
     case YamlElixir.read_from_string(yaml) do
       {:ok, map} when is_map(map) -> validate(map)
       {:ok, _other} -> {:error, ["The manifest must be a map."]}

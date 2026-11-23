@@ -24,6 +24,9 @@ Each operation becomes an action and each parameter or body property a field, wi
 its type. Give the actions the names people look for, keep the ones worth a node, and
 add `output` and `pagination`.
 
+YAML anchors and aliases (`&name`, `*name`) aren't supported: the YAML reader Bobbin
+uses turns an alias of a map into its first key. Write a repeated field out each time.
+
 ## The service
 
 ```yaml

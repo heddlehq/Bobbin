@@ -109,6 +109,32 @@ defmodule Bobbin.IntegrationTest do
     end
   end
 
+  test "refuses YAML aliases, which yamerl reads wrong" do
+    yaml = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    base_url: https://acme.test/
+    actions:
+      - name: Get
+        description: "Stars like *this* and 'a, *b' are text"
+        fields:
+          - &id {name: id, label: ID}
+        request: {method: GET, path: "things/{{fields.id}}"}
+      - name: Delete
+        fields: [*id]
+        request: {method: DELETE, path: "things/{{fields.id}}"}
+      - name: Update
+        fields:
+          - *id # same field
+        request: {method: PATCH, path: "things/{{fields.id}}"}
+    """
+
+    assert {:error, [first, second]} = Integration.parse(yaml)
+    assert first =~ "Line 12 uses a YAML alias"
+    assert second =~ "Line 16"
+  end
+
   test "refuses what isn't a manifest" do
     assert {:error, ["The manifest must be a map."]} = Integration.parse("- a\n- b")
     assert {:error, ["Invalid YAML" <> _]} = Integration.parse("a: [")
