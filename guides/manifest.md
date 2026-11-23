@@ -311,6 +311,14 @@ body:
     _merge: "{{fields.custom_fields}}"   # {"customfield_10010": "x"}
 ```
 
+An `_if` key leaves its map out when its value is empty, so a map with fixed keys
+isn't sent alone:
+
+```yaml
+body:
+  dueDateTime: {dateTime: "{{fields.due}}", timeZone: UTC, _if: "{{fields.due}}"}
+```
+
 Options can come from the service, so people pick a channel or a spreadsheet by name
 instead of pasting its ID. `options_from` takes a `request`, the `path` of the items
 in the answer, and the keys of each item that are its `label` and `value` (`name`

@@ -133,6 +133,20 @@ defmodule Bobbin.Integration.RequestTest do
     assert {:ok, _} = Request.run(acme, "Find", fields, %{}, plug: plug)
   end
 
+  test "_if leaves a map out when its value is empty, so fixed keys don't go alone" do
+    due = %{"dateTime" => "{{fields.due}}", "timeZone" => "UTC", "_if" => "{{fields.due}}"}
+    body = %{"title" => "T", "dueDateTime" => due}
+
+    assert Request.render(body, %{"fields" => %{"due" => "2026-12-01"}}) == %{
+             "title" => "T",
+             "dueDateTime" => %{"dateTime" => "2026-12-01", "timeZone" => "UTC"}
+           }
+
+    assert Request.render(body, %{"fields" => %{}}) == %{"title" => "T", "dueDateTime" => nil}
+    assert Request.render(body, %{"fields" => %{"due" => false}})["dueDateTime"] == nil
+    assert Request.render([due], %{"fields" => %{}}) == []
+  end
+
   test "_merge spreads a map into the one that holds it" do
     vars = %{"fields" => %{"custom" => %{"customfield_1" => "x", "summary" => "B"}, "s" => "A"}}
     body = %{"fields" => %{"summary" => "{{fields.s}}", "_merge" => "{{fields.custom}}"}}

@@ -236,17 +236,31 @@ defmodule Bobbin.Integration.Request do
 
   # `_merge` takes a map, usually from a json field, and spreads it into the map that
   # holds it, so custom fields sit next to the fixed ones. Its keys win.
+  #
+  # `_if` leaves the map out, as nil (or out of its list), when its value is empty, so
+  # a map with fixed keys, like `{dateTime, timeZone: UTC}`, isn't sent alone.
   def render(map, vars) when is_map(map) do
-    rendered = Map.new(map, fn {k, v} -> {k, render(v, vars)} end)
+    if skip?(map, vars) do
+      nil
+    else
+      rendered = map |> Map.delete("_if") |> Map.new(fn {k, v} -> {k, render(v, vars)} end)
 
-    case Map.pop(rendered, "_merge") do
-      {extra, rest} when is_map(extra) -> Map.merge(rest, extra)
-      {_none, rest} -> rest
+      case Map.pop(rendered, "_merge") do
+        {extra, rest} when is_map(extra) -> Map.merge(rest, extra)
+        {_none, rest} -> rest
+      end
     end
   end
 
-  def render(list, vars) when is_list(list), do: Enum.map(list, &render(&1, vars))
+  def render(list, vars) when is_list(list),
+    do: for(item <- list, not skip?(item, vars), do: render(item, vars))
+
   def render(value, _vars), do: value
+
+  defp skip?(%{"_if" => condition}, vars),
+    do: render(condition, vars) in [nil, "", false, [], %{}]
+
+  defp skip?(_value, _vars), do: false
 
   @doc """
   Renders the path of a request: each value is encoded as one segment, so a `/`, `?`
