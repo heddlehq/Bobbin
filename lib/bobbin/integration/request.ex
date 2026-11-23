@@ -603,7 +603,7 @@ defmodule Bobbin.Integration.Request do
     request =
       case pagination["limit_param"] do
         nil -> request
-        param -> put_param(request, param, size)
+        param -> put_param(request, pagination, param, size)
       end
 
     with {:ok, items} <- pages(request, integration, pagination, size, nil, 1, []) do
@@ -631,13 +631,13 @@ defmodule Bobbin.Integration.Request do
   defp page_request(request, _pagination, _size, nil, _page), do: request
 
   defp page_request(request, %{"type" => "cursor"} = pagination, _size, cursor, _page),
-    do: put_param(request, pagination["cursor_param"] || "cursor", cursor)
+    do: put_param(request, pagination, pagination["cursor_param"] || "cursor", cursor)
 
   defp page_request(request, %{"type" => "offset"} = pagination, _size, offset, _page),
-    do: put_param(request, pagination["offset_param"] || "offset", offset)
+    do: put_param(request, pagination, pagination["offset_param"] || "offset", offset)
 
   defp page_request(request, %{"type" => "page"} = pagination, _size, number, _page),
-    do: put_param(request, pagination["page_param"] || "page", number)
+    do: put_param(request, pagination, pagination["page_param"] || "page", number)
 
   defp page_request(request, %{"type" => "link"}, _size, url, _page),
     do: %{request | url: URI.parse(url), options: Map.delete(request.options, :params)}
@@ -657,13 +657,31 @@ defmodule Bobbin.Integration.Request do
 
   defp same_host(next, _request, _pagination), do: next
 
-  defp put_param(request, key, value) do
+  # With `in: body`, the parameter is a path in the JSON body, like `variables.after`
+  # for GraphQL.
+  defp put_param(request, %{"in" => "body"}, key, value) do
+    body = Map.get(request.options, :json) || %{}
+    path = String.split(key, ".")
+    %{request | options: Map.put(request.options, :json, put_path(body, path, value))}
+  end
+
+  defp put_param(request, _pagination, key, value) do
     params = request.options |> Map.get(:params, []) |> List.keydelete(key, 0)
     %{request | options: Map.put(request.options, :params, params ++ [{key, value}])}
   end
 
+  defp put_path(map, [key], value), do: Map.put(map, key, value)
+
+  defp put_path(map, [key | rest], value) do
+    inner = if is_map(map[key]), do: map[key], else: %{}
+    Map.put(map, key, put_path(inner, rest, value))
+  end
+
   defp next_page(response, %{"type" => "cursor"} = pagination, _items, _size, _page) do
+    more = pagination["has_more_path"] && dig(response.body, pagination["has_more_path"])
+
     case dig(response.body, pagination["next_path"]) do
+      _next when more == false -> nil
       next when next in [nil, ""] -> nil
       next -> next
     end

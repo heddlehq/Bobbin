@@ -111,7 +111,9 @@ defmodule Bobbin.Integration do
 
   `pagination.type` is `cursor`, `offset`, `page` (a page number) or `link` (the
   `Link` header). The node
-  returns the items of every page, from `pagination.items_path`.
+  returns the items of every page, from `pagination.items_path`. `pagination.in: body`
+  puts the page parameters in the JSON body, at paths like `variables.after`, and
+  `has_more_path` stops a cursor when the answer says there's nothing more.
 
   ## Triggers
 
@@ -488,6 +490,9 @@ defmodule Bobbin.Integration do
     case action["pagination"] do
       nil ->
         errors
+
+      %{"in" => place} when place not in ["query", "body"] ->
+        ["#{where}.pagination.in must be query or body" | errors]
 
       %{"type" => type} when type in @pagination_types ->
         errors

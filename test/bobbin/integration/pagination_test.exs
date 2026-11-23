@@ -28,6 +28,21 @@ defmodule Bobbin.Integration.PaginationTest do
     - name: List Body Linked
       request: {method: GET, path: tickets}
       pagination: {type: link, items_path: tickets, next_path: next_page_uri}
+    - name: List Issues
+      fields: [{name: team}]
+      request:
+        method: POST
+        path: graphql
+        body: {query: "issues", variables: {team: "{{fields.team}}"}}
+      pagination:
+        type: cursor
+        in: body
+        items_path: data.issues.nodes
+        limit_param: variables.first
+        cursor_param: variables.after
+        next_path: data.issues.pageInfo.endCursor
+        has_more_path: data.issues.pageInfo.hasNextPage
+        page_size: 2
   """
 
   setup do
@@ -112,5 +127,35 @@ defmodule Bobbin.Integration.PaginationTest do
     assert {:ok, [1]} = Request.run(i, "List Body Linked", %{}, %{"token" => "t"}, plug: plug)
     assert_received {:host, "desk.test"}
     refute_received {:host, "evil.test"}
+  end
+
+  test "GraphQL: the cursor and the size go in the body, and hasNextPage stops it",
+       %{integration: i} do
+    plug = fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      %{"variables" => variables} = JSON.decode!(body)
+      send(self(), {:vars, variables})
+
+      {nodes, more} =
+        if variables["after"],
+          do: {[%{"id" => 3}], false},
+          else: {[%{"id" => 1}, %{"id" => 2}], true}
+
+      Req.Test.json(conn, %{
+        "data" => %{
+          "issues" => %{
+            "nodes" => nodes,
+            "pageInfo" => %{"hasNextPage" => more, "endCursor" => "c#{length(nodes)}"}
+          }
+        }
+      })
+    end
+
+    assert {:ok, [%{"id" => 1}, %{"id" => 2}, %{"id" => 3}]} =
+             Request.run(i, "List Issues", %{"team" => "T"}, %{"token" => "t"}, plug: plug)
+
+    assert_received {:vars, %{"team" => "T", "first" => 2}}
+    assert_received {:vars, %{"team" => "T", "first" => 2, "after" => "c2"}}
+    refute_received {:vars, _}
   end
 end

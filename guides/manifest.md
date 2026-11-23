@@ -454,6 +454,29 @@ Or the next page's address in the answer, at `next_path`, like Twilio's
 `next_page_uri`. It may be relative. Either way, Bobbin only follows an address on the
 service's own host.
 
+A cursor stops when `next_path` is empty, or when `has_more_path` says `false`.
+
+Searches sent by POST, and GraphQL, take the page parameters in the body: with
+`in: body`, `cursor_param`, `limit_param`, `offset_param` and `page_param` are paths
+in the JSON body:
+
+```yaml
+request:
+  method: POST
+  path: graphql
+  body:
+    query: "query($first: Int, $after: String) { issues(first: $first, after: $after) { nodes { id title } pageInfo { hasNextPage endCursor } } }"
+pagination:
+  type: cursor
+  in: body
+  items_path: data.issues.nodes
+  limit_param: variables.first
+  cursor_param: variables.after
+  next_path: data.issues.pageInfo.endCursor
+  has_more_path: data.issues.pageInfo.hasNextPage
+  page_size: 50
+```
+
 ## Triggers
 
 A trigger starts a flow when something new shows up in the service. It's written like

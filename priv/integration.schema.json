@@ -633,6 +633,14 @@
             "first_page": {
               "type": "integer",
               "minimum": 0
+            },
+            "has_more_path": {
+              "type": "string",
+              "description": "Where the answer says whether there are more pages; false stops."
+            },
+            "in": {
+              "enum": ["query", "body"],
+              "description": "Where the page parameters go. With body, each is a path in the JSON body, like variables.after."
             }
           }
         }
@@ -782,6 +790,14 @@
                 "first_page": {
                   "type": "integer",
                   "minimum": 0
+                },
+                "has_more_path": {
+                  "type": "string",
+                  "description": "Where the answer says whether there are more pages; false stops."
+                },
+                "in": {
+                  "enum": ["query", "body"],
+                  "description": "Where the page parameters go. With body, each is a path in the JSON body, like variables.after."
                 }
               }
             }
