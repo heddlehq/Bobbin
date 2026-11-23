@@ -55,7 +55,7 @@ defmodule Bobbin.Integration.FilesTest do
         body:
           contentBytes: "{{fields.document | base64}}"
           noteBytes: "{{fields.note | base64}}"
-          name: "{{fields.document}}"
+          name: "{{fields.document | name}}"
 
     - name: Put Elsewhere
       fields:
@@ -149,7 +149,7 @@ defmodule Bobbin.Integration.FilesTest do
       assert %{
                "contentBytes" => "aGVsbG8=",
                "noteBytes" => "aGk=",
-               "name" => %{"name" => "a.txt"}
+               "name" => "a.txt"
              } =
                JSON.decode!(body)
 

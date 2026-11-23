@@ -15,10 +15,10 @@ defmodule Bobbin.Integration.Request do
   # In a path, `{{fields.repo | path}}` lets a value like owner/name span segments.
   @path_placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(path)\s*)?\}\}/
   # `{{fields.file | base64}}`, alone in a value, is the file's content (or the text) in
-  # Base64, for APIs that take a file inside JSON.
+  # Base64, for APIs that take a file inside JSON; `{{fields.file | name}}` its name.
   @item ~r/\A\{\{\s*item\s*\}\}\z/
   @item_inline ~r/\{\{\s*item\s*\}\}/
-  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(base64)\s*)?\}\}\z/
+  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(base64|name)\s*)?\}\}\z/
 
   @doc """
   Runs the action called `action_name`.
@@ -237,6 +237,12 @@ defmodule Bobbin.Integration.Request do
       [_match, scope, name, "base64"] ->
         vars |> get_in([scope, name]) |> base64()
 
+      [_match, scope, name, "name"] ->
+        case get_in(vars, [scope, name]) do
+          {:bobbin_file, ref} -> ref["name"]
+          _other -> nil
+        end
+
       nil ->
         Regex.replace(@placeholder, value, fn _match, scope, name ->
           vars |> get_in([scope, name]) |> text()
@@ -261,7 +267,11 @@ defmodule Bobbin.Integration.Request do
       end
       |> Enum.reject(&(&1 in [nil, ""]))
 
-    template = Map.delete(map, "_each")
+    template =
+      case Map.delete(map, "_each") do
+        %{"_value" => value} = only when map_size(only) == 1 -> value
+        template -> template
+      end
 
     case items do
       [] -> nil

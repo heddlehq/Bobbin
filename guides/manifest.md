@@ -328,6 +328,8 @@ body:
   toRecipients: {_each: "{{fields.to}}", emailAddress: {address: "{{item}}"}}
 ```
 
+With only `_value`, it makes a list of values: `{_each: "{{fields.phones}}", _value: "{{item}}"}`.
+
 Options can come from the service, so people pick a channel or a spreadsheet by name
 instead of pasting its ID. `options_from` takes a `request`, the `path` of the items
 in the answer, and the keys of each item that are its `label` and `value` (`name`
@@ -417,6 +419,7 @@ request:
 
 An API that takes the file inside JSON, in Base64, gets it from
 `{{fields.file | base64}}`, alone in its value. On a text field it encodes the text.
+`{{fields.file | name}}` is the file's name.
 
 Heddle keeps files with the run and drops them when it expires. `mix bobbin.run`
 keeps them in the system's temporary folder (see `Bobbin.Files`).

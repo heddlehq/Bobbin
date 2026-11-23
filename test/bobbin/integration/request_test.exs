@@ -170,6 +170,13 @@ defmodule Bobbin.Integration.RequestTest do
              %{"ids" => [%{"id" => 1}, %{"id" => 2}]}
   end
 
+  test "_each with only _value makes a list of values" do
+    phones = %{"_each" => "{{fields.phones}}", "_value" => "+55 {{item}}"}
+
+    assert Request.render(%{"p" => phones}, %{"fields" => %{"phones" => "1, 2"}}) ==
+             %{"p" => ["+55 1", "+55 2"]}
+  end
+
   test "_merge spreads a map into the one that holds it" do
     vars = %{"fields" => %{"custom" => %{"customfield_1" => "x", "summary" => "B"}, "s" => "A"}}
     body = %{"fields" => %{"summary" => "{{fields.s}}", "_merge" => "{{fields.custom}}"}}
