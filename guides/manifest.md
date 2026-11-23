@@ -14,6 +14,16 @@ mix bobbin.run my_service.yaml "Get Item" \
   --field id=42 --credential api_key=$KEY   # runs an action against the real API
 ```
 
+When the service publishes an OpenAPI 3 spec, start from a draft of it instead:
+
+```bash
+mix bobbin.import https://api.acme.test/openapi.json --id acme --tag contacts,deals
+```
+
+Each operation becomes an action and each parameter or body property a field, with
+its type. Give the actions the names people look for, keep the ones worth a node, and
+add `output` and `pagination`.
+
 ## The service
 
 ```yaml
