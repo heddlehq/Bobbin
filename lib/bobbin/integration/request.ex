@@ -238,10 +238,7 @@ defmodule Bobbin.Integration.Request do
         vars |> get_in([scope, name]) |> base64()
 
       [_match, scope, name, "name"] ->
-        case get_in(vars, [scope, name]) do
-          {:bobbin_file, ref} -> ref["name"]
-          _other -> nil
-        end
+        vars |> get_in([scope, name]) |> file_name()
 
       nil ->
         Regex.replace(@placeholder, value, fn _match, scope, name ->
@@ -313,10 +310,7 @@ defmodule Bobbin.Integration.Request do
         vars |> get_in([scope, name]) |> text() |> segment()
 
       _match, scope, name, "name" ->
-        case get_in(vars, [scope, name]) do
-          {:bobbin_file, ref} -> segment(text(ref["name"]))
-          _other -> ""
-        end
+        vars |> get_in([scope, name]) |> file_name() |> text() |> segment()
 
       _match, scope, name, _path ->
         vars
@@ -329,6 +323,14 @@ defmodule Bobbin.Integration.Request do
   end
 
   defp segment(value), do: URI.encode(value, &URI.char_unreserved?/1)
+
+  # A file's name, or the last part of a path like /Reports/2026.pdf.
+  defp file_name({:bobbin_file, ref}), do: ref["name"]
+
+  defp file_name(path) when is_binary(path) and path != "",
+    do: path |> String.trim_trailing("/") |> String.split("/") |> List.last()
+
+  defp file_name(_other), do: nil
 
   defp text(nil), do: ""
   defp text(value) when is_binary(value), do: value

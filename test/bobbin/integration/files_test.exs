@@ -214,6 +214,14 @@ defmodule Bobbin.Integration.FilesTest do
     assert_received {:path, "/items/root:/my%20report.txt:/content"}
   end
 
+  test "| name of a path is its last part" do
+    vars = %{"fields" => %{"path" => "/Reports/2026/Março.pdf", "dir" => "/Reports/"}}
+    assert Request.render("{{fields.path | name}}", vars) == "Março.pdf"
+    assert Request.render("{{fields.dir | name}}", vars) == "Reports"
+    assert Request.render("{{fields.none | name}}", vars) == nil
+    assert Request.render_path("x/{{fields.path | name}}", vars) == "x/Mar%C3%A7o.pdf"
+  end
+
   test "an action may go to an address of its own, like a service's upload host",
        %{integration: i, ref: ref} do
     plug = fn conn ->
