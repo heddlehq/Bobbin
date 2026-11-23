@@ -250,11 +250,23 @@ defmodule Bobbin.Integration.Webhook do
   defp fresh?(_timestamp, nil), do: true
   defp fresh?(nil, _tolerance), do: false
 
+  # In seconds since 1970, or a date and time like Box's 2026-11-23T10:00:00-08:00.
   defp fresh?(timestamp, tolerance) do
-    case Integer.parse(to_string(timestamp)) do
-      {seconds, _rest} -> abs(System.system_time(:second) - seconds) <= tolerance
-      :error -> false
-    end
+    timestamp = to_string(timestamp)
+
+    seconds =
+      case DateTime.from_iso8601(timestamp) do
+        {:ok, time, _offset} ->
+          DateTime.to_unix(time)
+
+        {:error, _reason} ->
+          case Integer.parse(timestamp) do
+            {seconds, ""} -> seconds
+            _other -> nil
+          end
+      end
+
+    seconds != nil and abs(System.system_time(:second) - seconds) <= tolerance
   end
 
   defp equal?(a, b) when byte_size(a) == byte_size(b), do: :crypto.hash_equals(a, b)

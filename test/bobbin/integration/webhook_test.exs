@@ -64,6 +64,16 @@ defmodule Bobbin.Integration.WebhookTest do
           message: "{{request.body}}{{webhook.url}}"
           secret: "{{credential.app_secret}}"
         challenge: {method: HEAD}
+
+    - name: Box Event
+      webhook:
+        signature:
+          header: Box-Signature-Primary
+          timestamp_header: Box-Delivery-Timestamp
+          encoding: base64
+          message: "{{request.body}}{{request.timestamp}}"
+          secret: "{{credential.signature_key}}"
+          tolerance: 600
   """
 
   setup do
@@ -163,6 +173,31 @@ defmodule Bobbin.Integration.WebhookTest do
     assert {:error, :signature} =
              Webhook.receive(i, "New Payment", event.(now - 600), %{}, %{
                "signing_secret" => "whsec"
+             })
+  end
+
+  test "a timestamp may be a date and time, like Box's", %{integration: i} do
+    body = ~s({"trigger": "FILE.UPLOADED"})
+
+    event = fn time ->
+      t = DateTime.to_iso8601(time)
+      mac = :crypto.mac(:hmac, :sha256, "key", body <> t) |> Base.encode64()
+
+      %{
+        headers: %{"box-signature-primary" => mac, "box-delivery-timestamp" => t},
+        body: body,
+        query: %{}
+      }
+    end
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    assert {:ok, [%{"trigger" => "FILE.UPLOADED"}]} =
+             Webhook.receive(i, "Box Event", event.(now), %{}, %{"signature_key" => "key"})
+
+    assert {:error, :signature} =
+             Webhook.receive(i, "Box Event", event.(DateTime.add(now, -3600)), %{}, %{
+               "signature_key" => "key"
              })
   end
 

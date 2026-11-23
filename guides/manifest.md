@@ -623,7 +623,8 @@ signature:
   tolerance: 300
 ```
 
-`timestamp_header` reads the timestamp from a header of its own instead. `algorithm`
+`timestamp_header` reads the timestamp from a header of its own instead. It may be in
+seconds or a date and time, like Box's `2026-11-23T10:00:00-08:00`. `algorithm`
 is `sha1`, `sha256` (the default) or `sha512`, and `encoding` is `hex` (the default)
 or `base64`.
 
