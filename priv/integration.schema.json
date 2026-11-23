@@ -527,7 +527,9 @@
             "body_type": {
               "enum": [
                 "json",
-                "form"
+                "form",
+                "multipart",
+                "binary"
               ]
             }
           }
@@ -544,7 +546,23 @@
                 "type": "string"
               }
             },
-            "value": {}
+            "value": {},
+            "file": {
+              "description": "Keep the answer as a file: true, or {name: template}. The node returns {file: {id, name, mime, size}}.",
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            }
           }
         },
         "pagination": {
@@ -605,7 +623,8 @@
             "boolean",
             "json",
             "multiselect",
-            "datetime"
+            "datetime",
+            "file"
           ]
         },
         "default": {},

@@ -260,13 +260,13 @@ actions:
 | Key | What it is |
 | --- | --- |
 | `resource` | What the action works on, like `Contact` or `Deal`. Heddle groups actions by it. |
-| `fields[].type` | `text` (the default), `textarea`, `number`, `select` or `multiselect` with `options`, `boolean`, `json` or `datetime`. |
+| `fields[].type` | `text` (the default), `textarea`, `number`, `select` or `multiselect` with `options`, `boolean`, `json`, `datetime` or `file`. |
 | `fields[].required` | The action fails, saying so, when the field is empty. |
 | `request.method` | `GET`, `POST`, `PUT`, `PATCH` or `DELETE`. |
 | `request.path` | Joined to `base_url`. It may hold templates. |
 | `request.query` | The parameters of the address, as a map. |
 | `request.headers` | Headers of this request, besides the credential's. |
-| `request.body_type` | `json`, the default, or `form`. |
+| `request.body_type` | `json`, the default, `form`, `multipart` or `binary`, see Files. |
 
 A `boolean` sends `true` or `false`. A `json` field sends what its JSON describes,
 a map or a list, and fails when it isn't JSON. A `multiselect` sends a list, and
@@ -310,6 +310,45 @@ request:
     email: "{{fields.email}}"
     limit: 50
 ```
+
+## Files
+
+A node that downloads a file keeps it and returns a reference to it,
+`{"file": {"id", "name", "mime", "size"}}`, so a file never travels inside a run's
+data. `output.file` does it, with the name from a template or, when left out, from
+the answer's `Content-Disposition`:
+
+```yaml
+- name: Download File
+  fields:
+    - {name: id, label: File ID}
+  request: {method: GET, path: "files/{{fields.id}}/content"}
+  output:
+    file:
+      name: "{{fields.id}}.pdf"   # or file: true
+```
+
+A field of type `file` takes such a reference, usually `{{result}}` of the node that
+downloaded it. Sent in a `multipart` body, it goes as a file with its name and type;
+maps and lists in the same body go as JSON. A `binary` body is the file alone, with its
+type as `Content-Type` unless the request sets one:
+
+```yaml
+- name: Upload File
+  fields:
+    - {name: file, label: File, type: file, required: true, default: "{{result}}"}
+    - {name: folder, label: Folder ID}
+  request:
+    method: POST
+    path: upload
+    body_type: multipart
+    body:
+      file: "{{fields.file}}"
+      metadata: {parent: "{{fields.folder}}"}
+```
+
+Heddle keeps files with the run and drops them when it expires. `mix bobbin.run`
+keeps them in the system's temporary folder (see `Bobbin.Files`).
 
 ## Responses
 

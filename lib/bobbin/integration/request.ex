@@ -126,9 +126,8 @@ defmodule Bobbin.Integration.Request do
          vars = Map.merge(extra, %{"fields" => values, "credential" => credential}),
          {:ok, base_url} <- base_url(integration, credential) do
       send = fn ->
-        request = build(base_url, action, vars, req_options)
-
-        with {:ok, request, key} <- Auth.put(request, integration, base_url, vars, req_options) do
+        with {:ok, request} <- build(base_url, action, vars, req_options),
+             {:ok, request, key} <- Auth.put(request, integration, base_url, vars, req_options) do
           result =
             case action.pagination do
               nil -> request |> call(integration) |> output(action, vars)
@@ -291,6 +290,19 @@ defmodule Bobbin.Integration.Request do
 
   defp cast(%{type: "multiselect"}, []), do: {:ok, nil}
 
+  defp cast(%{type: "file"} = field, value) do
+    case Bobbin.Files.ref(value) do
+      {:ok, ref} ->
+        {:ok, {:bobbin_file, ref}}
+
+      :empty ->
+        {:ok, nil}
+
+      :error ->
+        {:error, "#{field.label} must be a file, like the result of a node that downloads one."}
+    end
+  end
+
   defp cast(%{type: "datetime"} = field, value) when is_binary(value) do
     text = String.trim(value)
 
@@ -332,19 +344,84 @@ defmodule Bobbin.Integration.Request do
       retry: false
     ]
 
-    options
-    |> put_body(request, vars)
-    |> Keyword.merge(req_options)
-    |> Req.new()
+    # A file to download is kept as it came, not decoded.
+    options =
+      if action.output["file"], do: Keyword.put(options, :decode_body, false), else: options
+
+    with {:ok, options} <- put_body(options, request, vars) do
+      {:ok, options |> Keyword.merge(req_options) |> Req.new()}
+    end
   end
 
-  defp put_body(options, %{body: nil}, _vars), do: options
+  defp put_body(options, %{body: nil}, _vars), do: {:ok, options}
 
   defp put_body(options, %{body: body, body_type: "form"}, vars),
-    do: Keyword.put(options, :form, body |> render(vars) |> compact() |> Map.to_list())
+    do:
+      {:ok,
+       Keyword.put(options, :form, body |> render(vars) |> compact() |> unfile() |> Map.to_list())}
+
+  defp put_body(options, %{body: body, body_type: "multipart"}, vars) do
+    body
+    |> render(vars)
+    |> compact()
+    |> Enum.reduce_while({:ok, []}, fn {name, value}, {:ok, parts} ->
+      case part(value) do
+        {:ok, part} -> {:cont, {:ok, parts ++ [{name, part}]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, parts} -> {:ok, Keyword.put(options, :form_multipart, parts)}
+      error -> error
+    end
+  end
+
+  defp put_body(options, %{body: body, body_type: "binary"}, vars) do
+    case render(body, vars) do
+      {:bobbin_file, ref} ->
+        with {:ok, content} <- Bobbin.Files.read(ref) do
+          headers = options[:headers]
+
+          headers =
+            if List.keymember?(headers, "Content-Type", 0) or
+                 List.keymember?(headers, "content-type", 0),
+               do: headers,
+               else: [{"content-type", ref["mime"] || "application/octet-stream"} | headers]
+
+          {:ok, options |> Keyword.put(:body, content) |> Keyword.put(:headers, headers)}
+        end
+
+      text ->
+        {:ok, Keyword.put(options, :body, text(text))}
+    end
+  end
 
   defp put_body(options, %{body: body}, vars),
-    do: Keyword.put(options, :json, body |> render(vars) |> compact())
+    do: {:ok, Keyword.put(options, :json, body |> render(vars) |> compact() |> unfile())}
+
+  defp part({:bobbin_file, ref}) do
+    with {:ok, content} <- Bobbin.Files.read(ref) do
+      options = [filename: ref["name"], content_type: ref["mime"]]
+
+      options =
+        if is_integer(ref["size"]) and not is_binary(content) and not is_list(content),
+          do: Keyword.put(options, :size, ref["size"]),
+          else: options
+
+      {:ok, {content, options}}
+    end
+  end
+
+  defp part(value) when is_map(value) or is_list(value),
+    do: {:ok, value |> unfile() |> JSON.encode!()}
+
+  defp part(value), do: {:ok, text(value)}
+
+  # Outside a multipart form or a binary body, a file is sent as its reference.
+  defp unfile({:bobbin_file, ref}), do: ref
+  defp unfile(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, unfile(v)} end)
+  defp unfile(list) when is_list(list), do: Enum.map(list, &unfile/1)
+  defp unfile(value), do: value
 
   # Empty values are left out, so an optional field needs no syntax of its own.
   defp compact(map) when is_map(map) do
@@ -395,8 +472,40 @@ defmodule Bobbin.Integration.Request do
 
   ## Output
 
+  defp output({:ok, response}, %{output: %{"file" => file}}, vars)
+       when file not in [nil, false] do
+    name =
+      case file do
+        %{"name" => name} -> text(render(name, vars))
+        _true -> ""
+      end
+
+    name = if name == "", do: filename(response) || "file", else: name
+
+    mime =
+      case Req.Response.get_header(response, "content-type") do
+        [type | _] -> type |> String.split(";") |> hd() |> String.trim()
+        [] -> "application/octet-stream"
+      end
+
+    with {:ok, ref} <- Bobbin.Files.store(response.body, %{"name" => name, "mime" => mime}) do
+      {:ok, %{"file" => ref}}
+    end
+  end
+
   defp output({:ok, response}, action, vars), do: {:ok, shape(response.body, action.output, vars)}
   defp output(error, _action, _vars), do: error
+
+  defp filename(response) do
+    response
+    |> Req.Response.get_header("content-disposition")
+    |> Enum.find_value(fn header ->
+      case Regex.run(~r/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i, header) do
+        [_match, name] -> URI.decode(name)
+        nil -> nil
+      end
+    end)
+  end
 
   defp shape(body, output, vars) do
     cond do
