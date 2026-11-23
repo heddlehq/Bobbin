@@ -287,7 +287,8 @@ actions:
 | `request.path` | Joined to `base_url`. It may hold templates. |
 | `request.query` | The parameters of the address, as a map. |
 | `request.headers` | Headers of this request, besides the credential's. |
-| `request.body_type` | `json`, the default, `form`, `multipart` or `binary`, see Files. |
+| `request.body_type` | `json`, the default, `form`, `multipart`, `related` or `binary`, see Files. |
+| `request.base_url` | This request's own address, in place of the manifest's `base_url`, for a service with a host for uploads, like Dropbox's `https://content.dropboxapi.com/2/`. |
 
 A `select` sends its option's `value` as written, so `value: 2` goes as a number and
 `value: "2"` as text. A `boolean` sends `true` or `false`. A `json` field sends what its JSON describes,
@@ -382,6 +383,23 @@ type as `Content-Type` unless the request sets one:
       file: "{{fields.file}}"
       metadata: {parent: "{{fields.folder}}"}
 ```
+
+`related` sends `multipart/related`, as Google's uploads take it: each map of the body
+as a JSON part, then the file, each part with only its type:
+
+```yaml
+request:
+  method: POST
+  path: upload/drive/v3/files
+  query: {uploadType: multipart}
+  body_type: related
+  body:
+    metadata: {name: "{{fields.name}}", parents: ["{{fields.folder}}"]}
+    media: "{{fields.file}}"
+```
+
+An API that takes the file inside JSON, in Base64, gets it from
+`{{fields.file | base64}}`, alone in its value. On a text field it encodes the text.
 
 Heddle keeps files with the run and drops them when it expires. `mix bobbin.run`
 keeps them in the system's temporary folder (see `Bobbin.Files`).

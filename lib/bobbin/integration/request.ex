@@ -14,7 +14,9 @@ defmodule Bobbin.Integration.Request do
 
   # In a path, `{{fields.repo | path}}` lets a value like owner/name span segments.
   @path_placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(path)\s*)?\}\}/
-  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*\}\}\z/
+  # `{{fields.file | base64}}`, alone in a value, is the file's content (or the text) in
+  # Base64, for APIs that take a file inside JSON.
+  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(base64)\s*)?\}\}\z/
 
   @doc """
   Runs the action called `action_name`.
@@ -127,10 +129,11 @@ defmodule Bobbin.Integration.Request do
 
     with {:ok, values} <- field_values(action, fields),
          vars = Map.merge(extra, %{"fields" => values, "credential" => credential}),
-         {:ok, base_url} <- base_url(integration, credential) do
+         {:ok, base_url} <- base_url(integration, integration.base_url, credential),
+         {:ok, url} <- base_url(integration, action_base_url(action, integration), credential) do
       send = fn ->
         with {:ok, request} <-
-               build(base_url, Map.get(integration, :headers, %{}), action, vars, req_options),
+               build(url, Map.get(integration, :headers, %{}), action, vars, req_options),
              {:ok, request, key} <- Auth.put(request, integration, base_url, vars, req_options) do
           result =
             case action.pagination do
@@ -171,8 +174,11 @@ defmodule Bobbin.Integration.Request do
   # The address may take values of the credential: the account's subdomain, or the
   # whole address of a server the user runs. Neither may point the request at
   # another path, a user or a query.
-  defp base_url(integration, credential) do
-    template = integration.base_url
+  # An action may go to an address of its own, like a service's host for uploads.
+  defp action_base_url(action, integration),
+    do: (action.request && Map.get(action.request, :base_url)) || integration.base_url
+
+  defp base_url(integration, template, credential) do
     leading = Regex.match?(~r/\A\{\{/, template)
 
     bad =
@@ -217,6 +223,9 @@ defmodule Bobbin.Integration.Request do
     case Regex.run(@single_placeholder, value) do
       [_match, scope, name] ->
         get_in(vars, [scope, name])
+
+      [_match, scope, name, "base64"] ->
+        vars |> get_in([scope, name]) |> base64()
 
       nil ->
         Regex.replace(@placeholder, value, fn _match, scope, name ->
@@ -489,6 +498,47 @@ defmodule Bobbin.Integration.Request do
     end
   end
 
+  # multipart/related, as Google's uploads take it: the maps first, as JSON, then the
+  # files, each part with only its type.
+  defp put_body(options, %{body: body, body_type: "related"}, vars) do
+    rendered = body |> render(vars) |> compact()
+
+    {files, data} =
+      Enum.split_with(rendered, fn {_key, value} -> match?({:bobbin_file, _}, value) end)
+
+    parts =
+      Enum.map(data, fn {_key, value} ->
+        {:ok, "application/json; charset=UTF-8", JSON.encode!(unfile(value))}
+      end) ++
+        Enum.map(files, fn {_key, {:bobbin_file, ref}} ->
+          with {:ok, content} <- Bobbin.Files.read(ref),
+               do: {:ok, ref["mime"] || "application/octet-stream", content_binary(content)}
+        end)
+
+    case Enum.find(parts, &(not match?({:ok, _, _}, &1))) do
+      nil ->
+        boundary = "bobbin" <> Base.encode16(:crypto.strong_rand_bytes(12), case: :lower)
+
+        content =
+          Enum.map(parts, fn {:ok, type, data} ->
+            ["--", boundary, "\r\ncontent-type: ", type, "\r\n\r\n", data, "\r\n"]
+          end) ++ ["--", boundary, "--\r\n"]
+
+        headers = [
+          {"content-type", "multipart/related; boundary=#{boundary}"}
+          | Enum.reject(options[:headers], fn {k, _v} -> String.downcase(k) == "content-type" end)
+        ]
+
+        {:ok,
+         options
+         |> Keyword.put(:body, IO.iodata_to_binary(content))
+         |> Keyword.put(:headers, headers)}
+
+      error ->
+        error
+    end
+  end
+
   defp put_body(options, %{body: body, body_type: "binary"}, vars) do
     case render(body, vars) do
       {:bobbin_file, ref} ->
@@ -531,6 +581,20 @@ defmodule Bobbin.Integration.Request do
   defp part(value), do: {:ok, text(value)}
 
   # Outside a multipart form or a binary body, a file is sent as its reference.
+  defp base64(nil), do: nil
+
+  defp base64({:bobbin_file, ref}) do
+    case Bobbin.Files.read(ref) do
+      {:ok, content} -> content |> content_binary() |> Base.encode64()
+      _error -> nil
+    end
+  end
+
+  defp base64(value), do: value |> text() |> Base.encode64()
+
+  defp content_binary(content) when is_binary(content), do: content
+  defp content_binary(content), do: content |> Enum.to_list() |> IO.iodata_to_binary()
+
   defp unfile({:bobbin_file, ref}), do: ref
   defp unfile(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, unfile(v)} end)
   defp unfile(list) when is_list(list), do: Enum.map(list, &unfile/1)

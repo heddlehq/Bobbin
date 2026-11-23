@@ -32,6 +32,41 @@ defmodule Bobbin.Integration.FilesTest do
         body_type: binary
         body: "{{fields.document}}"
 
+    - name: Upload Related
+      fields:
+        - {name: document, label: File, type: file, required: true}
+        - {name: title, label: Title}
+      request:
+        method: POST
+        path: upload/files
+        query: {uploadType: multipart}
+        body_type: related
+        body:
+          metadata: {name: "{{fields.title}}"}
+          media: "{{fields.document}}"
+
+    - name: Attach
+      fields:
+        - {name: document, label: File, type: file, required: true}
+        - {name: note, label: Note}
+      request:
+        method: POST
+        path: attachments
+        body:
+          contentBytes: "{{fields.document | base64}}"
+          noteBytes: "{{fields.note | base64}}"
+          name: "{{fields.document}}"
+
+    - name: Put Elsewhere
+      fields:
+        - {name: document, label: File, type: file}
+      request:
+        method: POST
+        base_url: https://content.drive.test/2/
+        path: files/upload
+        body_type: binary
+        body: "{{fields.document}}"
+
     - name: Download
       fields:
         - {name: id, label: ID}
@@ -83,6 +118,57 @@ defmodule Bobbin.Integration.FilesTest do
     end
 
     assert {:ok, _} = Request.run(i, "Put", %{"document" => ref}, %{}, plug: plug)
+  end
+
+  test "uploads the metadata and the file as multipart/related, as Google wants",
+       %{integration: i, ref: ref} do
+    plug = fn conn ->
+      [type] = Plug.Conn.get_req_header(conn, "content-type")
+      assert [_, boundary] = Regex.run(~r{\Amultipart/related; boundary=(\S+)\z}, type)
+      assert conn.query_string == "uploadType=multipart"
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+      assert body ==
+               "--#{boundary}\r\ncontent-type: application/json; charset=UTF-8\r\n\r\n" <>
+                 ~s({"name":"T"}) <>
+                 "\r\n--#{boundary}\r\ncontent-type: text/plain\r\n\r\nhello\r\n--#{boundary}--\r\n"
+
+      Req.Test.json(conn, %{"id" => "f1"})
+    end
+
+    assert {:ok, %{"id" => "f1"}} =
+             Request.run(i, "Upload Related", %{"document" => ref, "title" => "T"}, %{},
+               plug: plug
+             )
+  end
+
+  test "| base64 puts a file, or a text, in a JSON body", %{integration: i, ref: ref} do
+    plug = fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+      assert %{
+               "contentBytes" => "aGVsbG8=",
+               "noteBytes" => "aGk=",
+               "name" => %{"name" => "a.txt"}
+             } =
+               JSON.decode!(body)
+
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} =
+             Request.run(i, "Attach", %{"document" => ref, "note" => "hi"}, %{}, plug: plug)
+  end
+
+  test "an action may go to an address of its own, like a service's upload host",
+       %{integration: i, ref: ref} do
+    plug = fn conn ->
+      send(self(), {:url, conn.host, conn.request_path})
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} = Request.run(i, "Put Elsewhere", %{"document" => ref}, %{}, plug: plug)
+    assert_received {:url, "content.drive.test", "/2/files/upload"}
   end
 
   test "keeps what it downloads as a file", %{integration: i} do

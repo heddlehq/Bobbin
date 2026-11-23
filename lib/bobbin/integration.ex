@@ -513,6 +513,14 @@ defmodule Bobbin.Integration do
         nil when not request? ->
           errors
 
+        %{"base_url" => url} when not is_nil(url) and not is_binary(url) ->
+          ["#{where}.request.base_url must be a URL starting with http" | errors]
+
+        %{"base_url" => url} when is_binary(url) and url != "" ->
+          if Regex.match?(~r/\A(https?:\/\/|\{\{\s*credential\.)/, url),
+            do: errors,
+            else: ["#{where}.request.base_url must be a URL starting with http" | errors]
+
         %{"method" => method, "path" => path} when method in @methods and is_binary(path) ->
           errors
 
@@ -682,7 +690,8 @@ defmodule Bobbin.Integration do
       headers: request["headers"] || %{},
       query: request["query"] || %{},
       body: request["body"],
-      body_type: request["body_type"] || "json"
+      body_type: request["body_type"] || "json",
+      base_url: request["base_url"]
     }
   end
 

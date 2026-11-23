@@ -348,6 +348,10 @@
                             "type": "object"
                           },
                           "body": {},
+                          "base_url": {
+                            "type": "string",
+                            "description": "This request's own address, in place of the manifest's base_url."
+                          },
                           "body_type": {
                             "enum": [
                               "json",
@@ -396,6 +400,10 @@
                             "type": "object"
                           },
                           "body": {},
+                          "base_url": {
+                            "type": "string",
+                            "description": "This request's own address, in place of the manifest's base_url."
+                          },
                           "body_type": {
                             "enum": [
                               "json",
@@ -567,11 +575,16 @@
               "type": "object"
             },
             "body": {},
+            "base_url": {
+              "type": "string",
+              "description": "This request's own address, in place of the manifest's base_url."
+            },
             "body_type": {
               "enum": [
                 "json",
                 "form",
                 "multipart",
+                "related",
                 "binary"
               ]
             }
@@ -750,6 +763,10 @@
                   "type": "object"
                 },
                 "body": {},
+                "base_url": {
+                  "type": "string",
+                  "description": "This request's own address, in place of the manifest's base_url."
+                },
                 "body_type": {
                   "enum": [
                     "json",
