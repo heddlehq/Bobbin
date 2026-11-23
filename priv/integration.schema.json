@@ -576,6 +576,7 @@
               "enum": [
                 "cursor",
                 "offset",
+                "page",
                 "link"
               ]
             },
@@ -597,6 +598,13 @@
             },
             "offset_param": {
               "type": "string"
+            },
+            "page_param": {
+              "type": "string"
+            },
+            "first_page": {
+              "type": "integer",
+              "minimum": 0
             }
           }
         }
@@ -718,6 +726,7 @@
                   "enum": [
                     "cursor",
                     "offset",
+                    "page",
                     "link"
                   ]
                 },
@@ -739,6 +748,13 @@
                 },
                 "offset_param": {
                   "type": "string"
+                },
+                "page_param": {
+                  "type": "string"
+                },
+                "first_page": {
+                  "type": "integer",
+                  "minimum": 0
                 }
               }
             }

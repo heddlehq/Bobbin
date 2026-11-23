@@ -107,7 +107,8 @@ defmodule Bobbin.Integration do
 
   ## Pagination
 
-  `pagination.type` is `cursor`, `offset` or `link` (the `Link` header). The node
+  `pagination.type` is `cursor`, `offset`, `page` (a page number) or `link` (the
+  `Link` header). The node
   returns the items of every page, from `pagination.items_path`.
 
   ## Triggers
@@ -152,7 +153,7 @@ defmodule Bobbin.Integration do
   @auth_types ~w(bearer header query basic oauth2 client_credentials login jwt hmac aws_sigv4 none)
   @methods ~w(GET POST PUT PATCH DELETE)
   @field_types ~w(text textarea number select boolean json multiselect datetime file)
-  @pagination_types ~w(cursor offset link)
+  @pagination_types ~w(cursor offset page link)
   @id ~r/\A[a-z][a-z0-9_]*\z/
   @version ~r/\A\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?\z/
 

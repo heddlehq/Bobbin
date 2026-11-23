@@ -574,6 +574,9 @@ defmodule Bobbin.Integration.Request do
   defp page_request(request, %{"type" => "offset"} = pagination, _size, offset, _page),
     do: put_param(request, pagination["offset_param"] || "offset", offset)
 
+  defp page_request(request, %{"type" => "page"} = pagination, _size, number, _page),
+    do: put_param(request, pagination["page_param"] || "page", number)
+
   defp page_request(request, %{"type" => "link"}, _size, url, _page),
     do: %{request | url: URI.parse(url), options: Map.delete(request.options, :params)}
 
@@ -591,6 +594,12 @@ defmodule Bobbin.Integration.Request do
 
   defp next_page(_response, %{"type" => "offset"}, items, size, page) do
     if length(items) < size, do: nil, else: page * size
+  end
+
+  # The first request goes without the parameter, so the service starts where it
+  # starts: `first_page` (1 by default) says what number that was.
+  defp next_page(_response, %{"type" => "page"} = pagination, items, size, page) do
+    if length(items) < size, do: nil, else: (pagination["first_page"] || 1) + page
   end
 
   defp next_page(response, %{"type" => "link"}, _items, _size, _page) do

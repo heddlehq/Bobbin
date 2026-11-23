@@ -420,6 +420,17 @@ pagination:
   page_size: 100
 ```
 
+A page number, from 1 (`first_page` when it starts elsewhere):
+
+```yaml
+pagination:
+  type: page
+  items_path: results
+  page_param: page
+  limit_param: per_page
+  page_size: 100
+```
+
 The `Link` header, like GitHub's:
 
 ```yaml
