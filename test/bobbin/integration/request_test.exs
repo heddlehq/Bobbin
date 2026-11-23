@@ -158,6 +158,29 @@ defmodule Bobbin.Integration.RequestTest do
              Request.run(acme, "Make", %{"status" => "5", "kinds" => "1, b"}, %{}, plug: plug)
   end
 
+  test "the integration's headers go in every request, under the request's own" do
+    yaml = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    base_url: https://acme.test/
+    headers: {Acme-Version: "2.0", Accept: application/json}
+    actions:
+      - name: Ping
+        request: {method: GET, path: ping, headers: {Accept: text/plain}}
+    """
+
+    {:ok, acme} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      assert Plug.Conn.get_req_header(conn, "acme-version") == ["2.0"]
+      assert Plug.Conn.get_req_header(conn, "accept") == ["text/plain"]
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} = Request.run(acme, "Ping", %{}, %{}, plug: plug)
+  end
+
   describe "poll/5" do
     test "returns each item with its id, leaving out items without one", %{integration: i} do
       plug = fn conn ->

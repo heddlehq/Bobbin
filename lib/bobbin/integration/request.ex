@@ -129,7 +129,8 @@ defmodule Bobbin.Integration.Request do
          vars = Map.merge(extra, %{"fields" => values, "credential" => credential}),
          {:ok, base_url} <- base_url(integration, credential) do
       send = fn ->
-        with {:ok, request} <- build(base_url, action, vars, req_options),
+        with {:ok, request} <-
+               build(base_url, Map.get(integration, :headers, %{}), action, vars, req_options),
              {:ok, request, key} <- Auth.put(request, integration, base_url, vars, req_options) do
           result =
             case action.pagination do
@@ -378,14 +379,19 @@ defmodule Bobbin.Integration.Request do
 
   ## Request
 
-  defp build(base_url, action, vars, req_options) do
+  defp build(base_url, headers, action, vars, req_options) do
     request = action.request
 
     options = [
       method: request.method |> String.downcase() |> String.to_atom(),
       url: base_url <> render_path(request.path, vars),
       params: request.query |> render(vars) |> compact() |> Enum.map(&query_pair/1),
-      headers: request.headers |> render(vars) |> compact() |> Map.to_list(),
+      headers:
+        headers
+        |> Map.merge(request.headers)
+        |> render(vars)
+        |> compact()
+        |> Map.to_list(),
       retry: false
     ]
 

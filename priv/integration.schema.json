@@ -43,6 +43,17 @@
       "pattern": "^(https?://|\\{\\{\\s*credential\\.)",
       "description": "May take values of the credential: https://{{credential.subdomain}}.example.com/ or {{credential.url}}/api/."
     },
+    "headers": {
+      "type": "object",
+      "description": "Headers of every request, like an API version. A request's own headers win.",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ]
+      }
+    },
     "i18n": {
       "type": "object",
       "description": "Texts in other languages, by locale (pt-BR): description, and under actions.<name> and triggers.<name> a name, a description and fields.<field name> labels.",
@@ -735,8 +746,8 @@
             "pagination": {
               "type": "object",
               "required": [
-            "type"
-          ],
+                "type"
+              ],
               "properties": {
                 "type": {
                   "enum": [

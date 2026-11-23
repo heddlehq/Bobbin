@@ -45,6 +45,7 @@ base_url: https://api.example.com/v1/
 | `version` | Like `1.0.0`. Raise it when you change the manifest. |
 | `icon` | A [heroicon](https://heroicons.com), like `hero-envelope` or `hero-cube-solid`. |
 | `base_url` | The start of every request's address. It may take values of the credential, see below. |
+| `headers` | Headers of every request, like `{Intercom-Version: "2.11"}`. A request's own headers win. |
 
 ## An address per account
 

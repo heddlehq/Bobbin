@@ -97,6 +97,8 @@ defmodule Bobbin.Integration do
   `credential.tls` holds a client certificate (`cert` and `key`, PEM) for services
   that ask for one.
 
+  `headers` go in every request, like an API version. A request's own headers win.
+
   ## Responses
 
     * `errors.ok_path`: a field of the body that must be `true`, for APIs that
@@ -143,6 +145,7 @@ defmodule Bobbin.Integration do
           icon: String.t(),
           category: String.t(),
           base_url: String.t(),
+          headers: map(),
           i18n: map(),
           credential: map() | nil,
           errors: map(),
@@ -558,6 +561,7 @@ defmodule Bobbin.Integration do
       icon: map["icon"] || "hero-puzzle-piece",
       category: map["category"] || id,
       base_url: map["base_url"],
+      headers: map["headers"] || %{},
       i18n: map["i18n"] || %{},
       credential: normalize_credential(map["credential"], map),
       errors: %{
