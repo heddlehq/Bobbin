@@ -144,6 +144,32 @@ defmodule Bobbin.Integration.RequestTest do
     assert Request.render(%{"a" => 1, "_merge" => "{{fields.none}}"}, vars) == %{"a" => 1}
   end
 
+  test "error_path: a GraphQL answer with errors is an error, even at 200" do
+    yaml = """
+    id: lin
+    name: Lin
+    version: 1.0.0
+    base_url: https://lin.test/
+    errors: {error_path: errors, message_path: errors.0.message}
+    actions:
+      - name: Query
+        request: {method: POST, path: graphql, body: {query: "{ viewer { id } }"}}
+    """
+
+    {:ok, lin} = Bobbin.Integration.parse(yaml)
+
+    failing = fn conn -> Req.Test.json(conn, %{"errors" => [%{"message" => "Bad query"}]}) end
+
+    working = fn conn ->
+      Req.Test.json(conn, %{"data" => %{"viewer" => %{"id" => "u1"}}, "errors" => []})
+    end
+
+    assert {:error, "Lin refused it: Bad query"} =
+             Request.run(lin, "Query", %{}, %{}, plug: failing)
+
+    assert {:ok, %{"data" => _}} = Request.run(lin, "Query", %{}, %{}, plug: working)
+  end
+
   test "an option written as a number goes as a number" do
     yaml = """
     id: acme

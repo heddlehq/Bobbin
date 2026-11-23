@@ -563,12 +563,14 @@ defmodule Bobbin.Integration.Request do
   end
 
   # Some APIs answer 200 when something failed, with the reason in the body.
-  defp check_ok(response, %{errors: %{ok_path: nil}}), do: {:ok, response}
+  defp check_ok(response, %{errors: errors} = integration) do
+    failed =
+      (errors.ok_path != nil and
+         not (is_map(response.body) and dig(response.body, errors.ok_path) == true)) or
+        (Map.get(errors, :error_path) != nil and is_map(response.body) and
+           dig(response.body, errors.error_path) not in [nil, [], %{}, "", false])
 
-  defp check_ok(response, %{errors: %{ok_path: path}} = integration) do
-    if is_map(response.body) and dig(response.body, path) == true,
-      do: {:ok, response},
-      else: {:error, refused(integration, response)}
+    if failed, do: {:error, refused(integration, response)}, else: {:ok, response}
   end
 
   defp refused(integration, response) do

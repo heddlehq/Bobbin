@@ -415,6 +415,15 @@ errors:
   message_path: error
 ```
 
+GraphQL answers 200 with the errors in `errors`. `error_path` names a field that
+must be empty:
+
+```yaml
+errors:
+  error_path: errors
+  message_path: errors.0.message
+```
+
 ## Pagination
 
 With `pagination`, the node asks for every page and returns all the items together,

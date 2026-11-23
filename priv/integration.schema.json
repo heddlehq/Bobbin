@@ -256,6 +256,10 @@
         "ok_path": {
           "type": "string"
         },
+        "error_path": {
+          "type": "string",
+          "description": "A field of the body that holds errors when there are any, like GraphQL's errors."
+        },
         "message_path": {
           "type": "string"
         }

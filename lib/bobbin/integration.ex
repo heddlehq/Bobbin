@@ -101,6 +101,8 @@ defmodule Bobbin.Integration do
 
   ## Responses
 
+    * `errors.error_path`: a field of the body that must be empty, like GraphQL's
+      `errors`, for APIs that answer 200 with errors.
     * `errors.ok_path`: a field of the body that must be `true`, for APIs that
       answer 200 when something failed. `errors.message_path` holds why.
     * `output.path`: the part of the body the node returns, like `data.items`.
@@ -571,6 +573,7 @@ defmodule Bobbin.Integration do
       credential: normalize_credential(map["credential"], map),
       errors: %{
         ok_path: get_in(map, ["errors", "ok_path"]),
+        error_path: get_in(map, ["errors", "error_path"]),
         message_path: get_in(map, ["errors", "message_path"])
       },
       actions: Enum.map(map["actions"], &normalize_action/1),
