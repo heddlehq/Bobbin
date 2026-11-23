@@ -699,6 +699,10 @@
         "strip": {
           "type": "string"
         },
+        "format": {
+          "enum": ["unix", "unix_ms"],
+          "description": "For a datetime: send it as seconds (unix) or milliseconds (unix_ms) since 1970."
+        },
         "options_from": {
           "type": "object",
           "required": [

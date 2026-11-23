@@ -672,7 +672,8 @@ defmodule Bobbin.Integration do
       options_from: normalize_options_from(field["options_from"]),
       secret: field["secret"] == true,
       required: field["required"] == true,
-      strip: field["strip"]
+      strip: field["strip"],
+      format: field["format"]
     }
   end
 

@@ -291,7 +291,9 @@ A `select` sends its option's `value` as written, so `value: 2` goes as a number
 a map or a list, and fails when it isn't JSON. In `query`, a map goes as JSON text and a
 list of plain values as `a,b,c`. A `multiselect` sends a list, and
 takes one written as `a, b` too. A `datetime` sends the text as written, once it
-reads as an ISO 8601 date (`2026-01-31` or `2026-01-31T09:00:00Z`). An empty field is
+reads as an ISO 8601 date (`2026-01-31` or `2026-01-31T09:00:00Z`). With `format: unix` or
+`format: unix_ms`, it goes as seconds or milliseconds since 1970 instead, for APIs
+that count time that way; a date without an offset is read as UTC. An empty field is
 left out of the request.
 
 Options can come from the service, so people pick a channel or a spreadsheet by name

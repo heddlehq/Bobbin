@@ -36,6 +36,8 @@ defmodule Bobbin.Integration.FieldsTest do
         - {name: custom, label: Custom fields, type: json}
         - {name: tags, label: Tags, type: multiselect, options: [{label: A, value: a}, {label: B, value: b}]}
         - {name: due, label: Due, type: datetime}
+        - {name: start, label: Start, type: datetime, format: unix_ms}
+        - {name: until, label: Until, type: datetime, format: unix}
       request:
         method: POST
         path: tickets
@@ -45,6 +47,8 @@ defmodule Bobbin.Integration.FieldsTest do
           custom: "{{fields.custom}}"
           tags: "{{fields.tags}}"
           due_at: "{{fields.due}}"
+          start: "{{fields.start}}"
+          until: "{{fields.until}}"
   """
 
   setup do
@@ -103,6 +107,20 @@ defmodule Bobbin.Integration.FieldsTest do
     assert body["urgent"] == false
     assert body["tags"] == ["b"]
     assert body["due_at"] == "2026-01-02T03:04:05Z"
+  end
+
+  test "a date with format unix or unix_ms goes as a number", %{integration: i} do
+    fields = %{"subject" => "Hi", "start" => "2026-01-02T03:04:05Z", "until" => "2026-01-02"}
+    assert {:ok, _} = run(i, fields)
+    assert_received {:request, _host, _path, body}
+    assert body["start"] == 1_767_323_045_000
+    assert body["until"] == 1_767_312_000
+
+    assert {:ok, _} = run(i, %{"subject" => "Hi", "start" => "1767323045000"})
+    assert_received {:request, _host, _path, %{"start" => 1_767_323_045_000}}
+
+    assert {:error, "Start must be a date and time" <> _} =
+             run(i, %{"subject" => "Hi", "start" => "soon"})
   end
 
   test "bad JSON, a bad date or a missing required field is an error", %{integration: i} do

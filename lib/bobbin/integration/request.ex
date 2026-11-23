@@ -347,6 +347,7 @@ defmodule Bobbin.Integration.Request do
 
     cond do
       text == "" -> {:ok, nil}
+      unix = unix(text, field[:format]) -> {:ok, unix}
       match?({:ok, _, _}, DateTime.from_iso8601(text)) -> {:ok, text}
       match?({:ok, _}, NaiveDateTime.from_iso8601(text)) -> {:ok, text}
       match?({:ok, _}, Date.from_iso8601(text)) -> {:ok, text}
@@ -360,6 +361,35 @@ defmodule Bobbin.Integration.Request do
 
   defp cast(_field, value) when is_binary(value), do: {:ok, String.trim(value)}
   defp cast(_field, value), do: {:ok, value}
+
+  # `format: unix` or `unix_ms` sends the date as seconds or milliseconds since 1970,
+  # read as UTC when it has no offset. A number is taken as already converted.
+  defp unix(text, format) when format in ["unix", "unix_ms"] do
+    unit = if format == "unix", do: :second, else: :millisecond
+
+    with nil <- integer(text),
+         {:ok, datetime} <- to_datetime(text) do
+      DateTime.to_unix(datetime, unit)
+    else
+      number when is_integer(number) -> number
+      _invalid -> nil
+    end
+  end
+
+  defp unix(_text, _format), do: nil
+
+  defp to_datetime(text) do
+    with {:error, _} <- DateTime.from_iso8601(text) |> ok_datetime(),
+         {:error, _} <- NaiveDateTime.from_iso8601(text) |> ok_naive(),
+         {:ok, date} <- Date.from_iso8601(text) do
+      DateTime.new(date, ~T[00:00:00])
+    end
+  end
+
+  defp ok_datetime({:ok, datetime, _offset}), do: {:ok, datetime}
+  defp ok_datetime(error), do: error
+  defp ok_naive({:ok, naive}), do: DateTime.from_naive(naive, "Etc/UTC")
+  defp ok_naive(error), do: error
 
   defp option_value(options, value) do
     case Enum.find(options, &(is_map(&1) and to_string(&1["value"]) == to_string(value))) do
