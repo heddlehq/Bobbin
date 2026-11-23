@@ -451,6 +451,95 @@
         },
         "strip": {
           "type": "string"
+        },
+        "options_from": {
+          "type": "object",
+          "required": [
+            "request"
+          ],
+          "description": "Lists the options from the service: a request (which may use {{fields.x}}), the path of the items, and the keys of each item that are its label and value.",
+          "properties": {
+            "request": {
+              "type": "object",
+              "required": [
+                "method",
+                "path"
+              ],
+              "properties": {
+                "method": {
+                  "enum": [
+                    "GET",
+                    "POST",
+                    "PUT",
+                    "PATCH",
+                    "DELETE"
+                  ]
+                },
+                "path": {
+                  "type": "string"
+                },
+                "headers": {
+                  "type": "object"
+                },
+                "query": {
+                  "type": "object"
+                },
+                "body": {},
+                "body_type": {
+                  "enum": [
+                    "json",
+                    "form"
+                  ]
+                }
+              }
+            },
+            "path": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string",
+              "default": "name"
+            },
+            "value": {
+              "type": "string",
+              "default": "id"
+            },
+            "pagination": {
+              "type": "object",
+              "required": [
+                "type",
+                "items_path"
+              ],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "cursor",
+                    "offset",
+                    "link"
+                  ]
+                },
+                "items_path": {
+                  "type": "string"
+                },
+                "page_size": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "limit_param": {
+                  "type": "string"
+                },
+                "cursor_param": {
+                  "type": "string"
+                },
+                "next_path": {
+                  "type": "string"
+                },
+                "offset_param": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
       }
     }

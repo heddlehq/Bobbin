@@ -274,6 +274,32 @@ takes one written as `a, b` too. A `datetime` sends the text as written, once it
 reads as an ISO 8601 date (`2026-01-31` or `2026-01-31T09:00:00Z`). An empty field is
 left out of the request.
 
+Options can come from the service, so people pick a channel or a spreadsheet by name
+instead of pasting its ID. `options_from` takes a `request`, the `path` of the items
+in the answer, and the keys of each item that are its `label` and `value` (`name`
+and `id` when left out). The request may use other fields, so a list can depend on
+what was picked before:
+
+```yaml
+fields:
+  - name: spreadsheet
+    label: Spreadsheet
+    type: select
+    options_from:
+      request: {method: GET, path: files, query: {q: "mimeType='sheet'"}}
+      path: files
+      label: name
+      value: id
+  - name: tab
+    label: Tab
+    type: select
+    options_from:
+      request: {method: GET, path: "spreadsheets/{{fields.spreadsheet}}"}
+      path: sheets
+      label: properties.title
+      value: properties.title
+```
+
 Filters in the address:
 
 ```yaml

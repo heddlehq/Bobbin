@@ -68,6 +68,15 @@ defmodule Bobbin.Integration do
   `actions.<name>` or `triggers.<name>` a `name`, a `description` and `fields` labels.
   See `translate/3`.
 
+  ## Options from the service
+
+  A `select` or `multiselect` may list its options from the service, with
+  `options_from`: a `request` (which may use other fields, like
+  `{{fields.spreadsheet}}`), the `path` of the items in the answer, and the keys of
+  each item that are its `label` and its `value` (`name` and `id` when left out). It
+  may have `pagination`, like an action. Heddle calls `Bobbin.Integration.Request.options/6`
+  when someone opens the field.
+
   ## Credential `auth` types
 
     * `bearer`: `token`
@@ -426,6 +435,9 @@ defmodule Bobbin.Integration do
               | errors
             ]
 
+          field["options_from"] != nil ->
+            check_options_from(errors, field["options_from"], "#{where}.fields[#{index}]")
+
           type in ["select", "multiselect"] and not is_list(field["options"]) ->
             ["#{where}.fields[#{index}] is a #{type} and needs options" | errors]
 
@@ -439,6 +451,13 @@ defmodule Bobbin.Integration do
   end
 
   defp check_fields(errors, where, _fields), do: ["#{where}.fields must be a list" | errors]
+
+  defp check_options_from(errors, %{"request" => %{"method" => method, "path" => path}}, _where)
+       when method in @methods and is_binary(path),
+       do: errors
+
+  defp check_options_from(errors, _from, where),
+    do: ["#{where}.options_from needs a request with a method and a path" | errors]
 
   ## Normalizing
 
@@ -485,23 +504,37 @@ defmodule Bobbin.Integration do
   end
 
   defp normalize_action(action) do
-    request = action["request"]
-
     %{
       name: action["name"],
       description: action["description"] || "",
       resource: action["resource"],
       fields: Enum.map(action["fields"] || [], &normalize_field/1),
-      request: %{
-        method: request["method"],
-        path: request["path"],
-        headers: request["headers"] || %{},
-        query: request["query"] || %{},
-        body: request["body"],
-        body_type: request["body_type"] || "json"
-      },
+      request: normalize_request(action["request"]),
       output: action["output"] || %{},
       pagination: action["pagination"]
+    }
+  end
+
+  defp normalize_request(request) do
+    %{
+      method: request["method"],
+      path: request["path"],
+      headers: request["headers"] || %{},
+      query: request["query"] || %{},
+      body: request["body"],
+      body_type: request["body_type"] || "json"
+    }
+  end
+
+  defp normalize_options_from(nil), do: nil
+
+  defp normalize_options_from(from) do
+    %{
+      request: normalize_request(from["request"]),
+      path: from["path"],
+      label: from["label"] || "name",
+      value: from["value"] || "id",
+      pagination: from["pagination"]
     }
   end
 
@@ -514,6 +547,7 @@ defmodule Bobbin.Integration do
       type: type,
       default: default(type, field["default"]),
       options: field["options"],
+      options_from: normalize_options_from(field["options_from"]),
       secret: field["secret"] == true,
       required: field["required"] == true,
       strip: field["strip"]

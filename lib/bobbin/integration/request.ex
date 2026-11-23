@@ -61,6 +61,46 @@ defmodule Bobbin.Integration.Request do
     end
   end
 
+  @doc """
+  Lists the options of the field `field_name` of an action or a trigger, from its
+  `options_from`. `fields` holds what the node has so far, for options that depend on
+  another field.
+
+  Returns `{:ok, [%{"label" => label, "value" => value}]}`, both as text.
+  """
+  @spec options(Integration.t(), String.t(), String.t(), map(), map(), keyword()) ::
+          {:ok, [map()]} | {:error, String.t()}
+  def options(integration, action_name, field_name, fields, credential, req_options \\ []) do
+    action =
+      Integration.action(integration, action_name) ||
+        Integration.trigger(integration, action_name)
+
+    field = action && Enum.find(action.fields, &(&1.name == field_name))
+
+    case field do
+      %{options_from: %{} = from} ->
+        # The other fields may still be empty while the node is being filled.
+        lister = %{
+          fields: Enum.map(action.fields, &%{&1 | required: false}),
+          request: from.request,
+          output: %{"path" => from.path},
+          pagination: from.pagination
+        }
+
+        with {:ok, items} <- perform(integration, lister, fields, credential, req_options) do
+          {:ok,
+           for item <- List.wrap(items),
+               value = dig(item, from.value),
+               value != nil do
+             %{"label" => text(dig(item, from.label) || value), "value" => text(value)}
+           end}
+        end
+
+      _other ->
+        {:error, "#{action_name} has no options to fetch for #{field_name}."}
+    end
+  end
+
   defp item_id(item, path) when is_map(item) do
     case dig(item, path) do
       nil -> nil

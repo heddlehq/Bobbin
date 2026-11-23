@@ -53,6 +53,27 @@ defmodule Bobbin.Integration.Runtime do
   end
 
   @doc """
+  Lists the options of `field_name` in a node of `action_name`, for the editor, with
+  the credential the node picked and what its other fields hold so far.
+
+  Returns `{:ok, [%{"label" => label, "value" => value}]}` or `{:error, message}`.
+  """
+  def options(manifest, action_name, field_name, context) do
+    action = Manifest.action(manifest, action_name) || Manifest.trigger(manifest, action_name)
+
+    with_credential(manifest, context, fn credential ->
+      Request.options(
+        manifest,
+        action_name,
+        field_name,
+        if(action, do: fields(action, context), else: %{}),
+        credential,
+        Integration.req_options([])
+      )
+    end)
+  end
+
+  @doc """
   What a trigger node does: passes on the item that started the run as `result`. Run
   from the editor, with no item, it takes the newest the service has, to try the flow.
   """
