@@ -415,7 +415,7 @@ defmodule Bobbin.Integration.Request do
     options = [
       method: request.method |> String.downcase() |> String.to_atom(),
       url: base_url <> render_path(request.path, vars),
-      params: request.query |> render(vars) |> compact() |> Enum.map(&query_pair/1),
+      params: request.query |> render(vars) |> compact() |> Enum.flat_map(&query_pairs/1),
       headers:
         headers
         |> Map.merge(request.headers)
@@ -434,11 +434,22 @@ defmodule Bobbin.Integration.Request do
     end
   end
 
-  # A list of plain values goes as a,b,c; a map, or a list holding one, as JSON.
+  # A list of plain values goes as a,b,c, or once per value when the key ends in []
+  # (tags[]=a&tags[]=b); a map, or a list holding one, as JSON.
+  defp query_pairs({key, list} = pair) when is_list(list) do
+    if String.ends_with?(to_string(key), "[]") and Enum.all?(list, &plain?/1),
+      do: Enum.map(list, &{key, &1}),
+      else: [query_pair(pair)]
+  end
+
+  defp query_pairs(pair), do: [query_pair(pair)]
+
+  defp plain?(value), do: is_binary(value) or is_number(value) or is_boolean(value)
+
   defp query_pair({key, value}) when is_map(value), do: {key, JSON.encode!(value)}
 
   defp query_pair({key, value}) when is_list(value) do
-    if Enum.all?(value, &(is_binary(&1) or is_number(&1) or is_boolean(&1))),
+    if Enum.all?(value, &plain?/1),
       do: {key, Enum.join(value, ",")},
       else: {key, JSON.encode!(value)}
   end

@@ -105,7 +105,7 @@ defmodule Bobbin.Integration.RequestTest do
     assert Request.render(%{"a" => ["{{fields.s}}"]}, vars) == %{"a" => ["a"]}
   end
 
-  test "a map in the query goes as JSON, a list as a,b" do
+  test "a map in the query goes as JSON, a list as a,b, or repeated with []" do
     yaml = """
     id: acme
     name: Acme
@@ -116,7 +116,7 @@ defmodule Bobbin.Integration.RequestTest do
         fields:
           - {name: filters, label: Filters, type: json}
           - {name: tags, label: Tags, type: multiselect, options: [{label: A, value: a}, {label: B, value: b}]}
-        request: {method: GET, path: things, query: {filters: "{{fields.filters}}", tags: "{{fields.tags}}"}}
+        request: {method: GET, path: things, query: {filters: "{{fields.filters}}", tags: "{{fields.tags}}", "ids[]": "{{fields.tags}}"}}
     """
 
     {:ok, acme} = Bobbin.Integration.parse(yaml)
@@ -125,6 +125,7 @@ defmodule Bobbin.Integration.RequestTest do
       conn = Plug.Conn.fetch_query_params(conn)
       assert conn.query_params["filters"] == ~s({"type":"equal"})
       assert conn.query_params["tags"] == "a,b"
+      assert conn.query_string =~ "ids%5B%5D=a&ids%5B%5D=b"
       Req.Test.json(conn, %{})
     end
 
