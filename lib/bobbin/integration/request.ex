@@ -18,7 +18,7 @@ defmodule Bobbin.Integration.Request do
   # Base64, for APIs that take a file inside JSON; `{{fields.file | name}}` its name.
   @item ~r/\A\{\{\s*item\s*\}\}\z/
   @item_inline ~r/\{\{\s*item\s*\}\}/
-  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(base64|name)\s*)?\}\}\z/
+  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(base64|name|keep)\s*)?\}\}\z/
 
   @doc """
   Runs the action called `action_name`.
@@ -240,6 +240,12 @@ defmodule Bobbin.Integration.Request do
       [_match, scope, name, "name"] ->
         vars |> get_in([scope, name]) |> file_name()
 
+      [_match, scope, name, "keep"] ->
+        case get_in(vars, [scope, name]) do
+          empty when empty in [nil, ""] -> :bobbin_blank
+          value -> value
+        end
+
       nil ->
         Regex.replace(@placeholder, value, fn _match, scope, name ->
           vars |> get_in([scope, name]) |> text()
@@ -333,6 +339,7 @@ defmodule Bobbin.Integration.Request do
   defp file_name(_other), do: nil
 
   defp text(nil), do: ""
+  defp text(:bobbin_blank), do: ""
   defp text(value) when is_binary(value), do: value
   defp text(value) when is_number(value) or is_boolean(value), do: to_string(value)
   defp text(value), do: JSON.encode!(value)
@@ -521,12 +528,14 @@ defmodule Bobbin.Integration.Request do
     options = [
       method: request.method |> String.downcase() |> String.to_atom(),
       url: base_url <> render_path(request.path, vars),
-      params: request.query |> render(vars) |> compact() |> Enum.flat_map(&query_pairs/1),
+      params:
+        request.query |> render(vars) |> compact() |> unfile() |> Enum.flat_map(&query_pairs/1),
       headers:
         headers
         |> Map.merge(request.headers)
         |> render(vars)
         |> compact()
+        |> unfile()
         |> Enum.map(fn {key, value} -> {key, header_value(value)} end),
       retry: false
     ]
@@ -698,6 +707,7 @@ defmodule Bobbin.Integration.Request do
   defp unfile({:bobbin_file, ref}), do: ref
   defp unfile(:bobbin_empty), do: %{}
   defp unfile(:bobbin_empty_list), do: []
+  defp unfile(:bobbin_blank), do: ""
   defp unfile(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, unfile(v)} end)
   defp unfile(list) when is_list(list), do: Enum.map(list, &unfile/1)
   defp unfile(value), do: value

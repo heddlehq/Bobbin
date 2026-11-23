@@ -311,6 +311,9 @@ body:
     _merge: "{{fields.custom_fields}}"   # {"customfield_10010": "x"}
 ```
 
+A value that must go even when empty, like Dropbox's root folder `""`, takes
+`{{fields.folder | keep}}`, alone in its value.
+
 A map whose fields all came out empty is left out too, and so is an empty value in a
 list, like `parents: ["{{fields.folder}}"]` with no folder, and the list it left
 empty. A `{}` or a `[]` written in the manifest, like Microsoft Graph's `folder: {}`,

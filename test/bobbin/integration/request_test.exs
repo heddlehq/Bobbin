@@ -235,6 +235,37 @@ defmodule Bobbin.Integration.RequestTest do
     assert_received {:body, %{"parents" => ["F"]}}
   end
 
+  test "| keep sends a value even when empty, as Dropbox names its root \"\"" do
+    yaml = """
+    id: box
+    name: Box
+    version: 1.0.0
+    base_url: https://api.test/
+    actions:
+      - name: List
+        fields: [{name: folder, label: Folder}]
+        request:
+          method: POST
+          path: list
+          query: {q: "{{fields.folder | keep}}"}
+          body: {path: "{{fields.folder | keep}}", recursive: false}
+    """
+
+    {:ok, box} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(self(), {:sent, conn.query_string, JSON.decode!(body)})
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} = Request.run(box, "List", %{}, %{}, plug: plug)
+    assert_received {:sent, "q=", %{"path" => "", "recursive" => false}}
+
+    assert {:ok, _} = Request.run(box, "List", %{"folder" => "/a"}, %{}, plug: plug)
+    assert_received {:sent, "q=%2Fa", %{"path" => "/a"}}
+  end
+
   test "_merge spreads a map into the one that holds it" do
     vars = %{"fields" => %{"custom" => %{"customfield_1" => "x", "summary" => "B"}, "s" => "A"}}
     body = %{"fields" => %{"summary" => "{{fields.s}}", "_merge" => "{{fields.custom}}"}}
