@@ -215,7 +215,7 @@ defmodule Bobbin.Integration.RequestTest do
         request:
           method: POST
           path: copy
-          body: {parents: ["{{fields.folder}}"], tags: [a, "{{fields.tag}}"], keep: []}
+          body: {parents: ["{{fields.folder}}"], tags: [a, "{{fields.tag}}"], keep: [], notes: [{value: "{{fields.tag}}", _if: "{{fields.tag}}"}]}
     """
 
     {:ok, drive} = Bobbin.Integration.parse(yaml)
@@ -229,6 +229,7 @@ defmodule Bobbin.Integration.RequestTest do
     assert {:ok, _} = Request.run(drive, "Copy", %{}, %{}, plug: plug)
     assert_received {:body, %{"tags" => ["a"], "keep" => []} = body}
     refute Map.has_key?(body, "parents")
+    refute Map.has_key?(body, "notes")
 
     assert {:ok, _} = Request.run(drive, "Copy", %{"folder" => "F"}, %{}, plug: plug)
     assert_received {:body, %{"parents" => ["F"]}}

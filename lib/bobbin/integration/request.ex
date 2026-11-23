@@ -627,9 +627,10 @@ defmodule Bobbin.Integration.Request do
       {:ok,
        Keyword.put(options, :json, body |> keep_empty() |> render(vars) |> compact() |> unfile())}
 
-  # A {} written in the manifest, like Microsoft Graph's `folder: {}`, is sent, while
-  # compact/1 leaves out a map its empty fields left empty. unfile/1 puts it back.
+  # A {} or [] written in the manifest, like Microsoft Graph's `folder: {}`, is sent,
+  # while compact/1 leaves out one its empty fields left empty. unfile/1 puts it back.
   defp keep_empty(map) when map == %{}, do: :bobbin_empty
+  defp keep_empty([]), do: :bobbin_empty_list
   defp keep_empty(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, keep_empty(v)} end)
   defp keep_empty(list) when is_list(list), do: Enum.map(list, &keep_empty/1)
   defp keep_empty(value), do: value
@@ -669,6 +670,7 @@ defmodule Bobbin.Integration.Request do
 
   defp unfile({:bobbin_file, ref}), do: ref
   defp unfile(:bobbin_empty), do: %{}
+  defp unfile(:bobbin_empty_list), do: []
   defp unfile(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, unfile(v)} end)
   defp unfile(list) when is_list(list), do: Enum.map(list, &unfile/1)
   defp unfile(value), do: value
@@ -677,14 +679,13 @@ defmodule Bobbin.Integration.Request do
   defp compact(map) when is_map(map) do
     map
     |> Enum.map(fn {key, value} -> {key, compact(value)} end)
-    |> Enum.reject(fn {_key, value} -> value in [nil, "", %{}] end)
+    |> Enum.reject(fn {_key, value} -> value in [nil, "", %{}, []] end)
     |> Map.new()
   end
 
-  # Inside a list too, and a list its fields left empty goes, while a [] written as
-  # such stays.
-  defp compact([_ | _] = list) do
-    case list |> Enum.map(&compact/1) |> Enum.reject(&(&1 in [nil, "", %{}])) do
+  # Inside a list too, and a list left empty goes as well.
+  defp compact(list) when is_list(list) do
+    case list |> Enum.map(&compact/1) |> Enum.reject(&(&1 in [nil, "", %{}, []])) do
       [] -> nil
       kept -> kept
     end
