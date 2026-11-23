@@ -57,6 +57,16 @@ defmodule Bobbin.Integration.FilesTest do
           noteBytes: "{{fields.note | base64}}"
           name: "{{fields.document | name}}"
 
+    - name: Put Named
+      fields:
+        - {name: document, label: File, type: file}
+        - {name: folder, label: Folder}
+      request:
+        method: PUT
+        path: "items/{{fields.folder}}:/{{fields.document | name}}:/content"
+        body_type: binary
+        body: "{{fields.document}}"
+
     - name: Put Elsewhere
       fields:
         - {name: document, label: File, type: file}
@@ -158,6 +168,22 @@ defmodule Bobbin.Integration.FilesTest do
 
     assert {:ok, _} =
              Request.run(i, "Attach", %{"document" => ref, "note" => "hi"}, %{}, plug: plug)
+  end
+
+  test "| name puts the file's name in the path", %{integration: i} do
+    {:ok, ref} = Bobbin.Files.store("hi", %{"name" => "my report.txt", "mime" => "text/plain"})
+
+    plug = fn conn ->
+      send(self(), {:path, conn.request_path})
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} =
+             Request.run(i, "Put Named", %{"document" => ref, "folder" => "root"}, %{},
+               plug: plug
+             )
+
+    assert_received {:path, "/items/root:/my%20report.txt:/content"}
   end
 
   test "an action may go to an address of its own, like a service's upload host",

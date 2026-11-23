@@ -13,7 +13,7 @@ defmodule Bobbin.Integration.Request do
   @placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*\}\}/
 
   # In a path, `{{fields.repo | path}}` lets a value like owner/name span segments.
-  @path_placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(path)\s*)?\}\}/
+  @path_placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(path|name)\s*)?\}\}/
   # `{{fields.file | base64}}`, alone in a value, is the file's content (or the text) in
   # Base64, for APIs that take a file inside JSON; `{{fields.file | name}}` its name.
   @item ~r/\A\{\{\s*item\s*\}\}\z/
@@ -311,6 +311,12 @@ defmodule Bobbin.Integration.Request do
     Regex.replace(@path_placeholder, path, fn
       _match, scope, name, "" ->
         vars |> get_in([scope, name]) |> text() |> segment()
+
+      _match, scope, name, "name" ->
+        case get_in(vars, [scope, name]) do
+          {:bobbin_file, ref} -> segment(text(ref["name"]))
+          _other -> ""
+        end
 
       _match, scope, name, _path ->
         vars

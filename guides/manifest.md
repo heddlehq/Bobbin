@@ -422,7 +422,7 @@ request:
 
 An API that takes the file inside JSON, in Base64, gets it from
 `{{fields.file | base64}}`, alone in its value. On a text field it encodes the text.
-`{{fields.file | name}}` is the file's name.
+`{{fields.file | name}}` is the file's name, in a value or in a `path`.
 
 Heddle keeps files with the run and drops them when it expires. `mix bobbin.run`
 keeps them in the system's temporary folder (see `Bobbin.Files`).
