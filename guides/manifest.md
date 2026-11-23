@@ -319,6 +319,15 @@ body:
   dueDateTime: {dateTime: "{{fields.due}}", timeZone: UTC, _if: "{{fields.due}}"}
 ```
 
+An `_each` key makes a copy of its map for each value of a list, or of a text with
+commas, with the value as `{{item}}`. People type `a@x.com, b@y.com`, and the API gets
+a list of objects:
+
+```yaml
+body:
+  toRecipients: {_each: "{{fields.to}}", emailAddress: {address: "{{item}}"}}
+```
+
 Options can come from the service, so people pick a channel or a spreadsheet by name
 instead of pasting its ID. `options_from` takes a `request`, the `path` of the items
 in the answer, and the keys of each item that are its `label` and `value` (`name`

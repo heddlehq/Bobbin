@@ -16,6 +16,8 @@ defmodule Bobbin.Integration.Request do
   @path_placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(path)\s*)?\}\}/
   # `{{fields.file | base64}}`, alone in a value, is the file's content (or the text) in
   # Base64, for APIs that take a file inside JSON.
+  @item ~r/\A\{\{\s*item\s*\}\}\z/
+  @item_inline ~r/\{\{\s*item\s*\}\}/
   @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(base64)\s*)?\}\}\z/
 
   @doc """
@@ -221,6 +223,14 @@ defmodule Bobbin.Integration.Request do
   @spec render(term(), map()) :: term()
   def render(value, vars) when is_binary(value) do
     case Regex.run(@single_placeholder, value) do
+      nil when is_map_key(vars, "item") ->
+        if Regex.match?(@item, value),
+          do: vars["item"],
+          else:
+            Regex.replace(@item_inline, render(value, Map.delete(vars, "item")), fn _ ->
+              text(vars["item"])
+            end)
+
       [_match, scope, name] ->
         get_in(vars, [scope, name])
 
@@ -239,6 +249,26 @@ defmodule Bobbin.Integration.Request do
   #
   # `_if` leaves the map out, as nil (or out of its list), when its value is empty, so
   # a map with fixed keys, like `{dateTime, timeZone: UTC}`, isn't sent alone.
+  #
+  # `_each` makes a copy of the map for each value of a list, or of a text with commas,
+  # with the value as `{{item}}`.
+  def render(%{"_each" => each} = map, vars) do
+    items =
+      case render(each, vars) do
+        list when is_list(list) -> list
+        text when is_binary(text) -> text |> String.split(",") |> Enum.map(&String.trim/1)
+        _none -> []
+      end
+      |> Enum.reject(&(&1 in [nil, ""]))
+
+    template = Map.delete(map, "_each")
+
+    case items do
+      [] -> nil
+      items -> Enum.map(items, &render(template, Map.put(vars, "item", &1)))
+    end
+  end
+
   def render(map, vars) when is_map(map) do
     if skip?(map, vars) do
       nil

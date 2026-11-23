@@ -147,6 +147,29 @@ defmodule Bobbin.Integration.RequestTest do
     assert Request.render([due], %{"fields" => %{}}) == []
   end
 
+  test "_each makes a map of each value of a list, or of a text with commas" do
+    to = %{"_each" => "{{fields.to}}", "emailAddress" => %{"address" => "{{item}}"}}
+    body = %{"toRecipients" => to}
+
+    assert Request.render(body, %{"fields" => %{"to" => "a@x.test, b@y.test"}}) == %{
+             "toRecipients" => [
+               %{"emailAddress" => %{"address" => "a@x.test"}},
+               %{"emailAddress" => %{"address" => "b@y.test"}}
+             ]
+           }
+
+    assert Request.render(body, %{"fields" => %{"to" => ["c@z.test"]}}) == %{
+             "toRecipients" => [%{"emailAddress" => %{"address" => "c@z.test"}}]
+           }
+
+    assert Request.render(body, %{"fields" => %{}}) == %{"toRecipients" => nil}
+
+    assert Request.render(%{"ids" => %{"_each" => "{{fields.ids}}", "id" => "{{item}}"}}, %{
+             "fields" => %{"ids" => [1, 2]}
+           }) ==
+             %{"ids" => [%{"id" => 1}, %{"id" => 2}]}
+  end
+
   test "_merge spreads a map into the one that holds it" do
     vars = %{"fields" => %{"custom" => %{"customfield_1" => "x", "summary" => "B"}, "s" => "A"}}
     body = %{"fields" => %{"summary" => "{{fields.s}}", "_merge" => "{{fields.custom}}"}}
