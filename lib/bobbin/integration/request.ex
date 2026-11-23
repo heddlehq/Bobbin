@@ -559,17 +559,20 @@ defmodule Bobbin.Integration.Request do
   end
 
   # multipart/related, as Google's uploads take it: the maps first, as JSON, then the
-  # files, each part with only its type.
+  # texts and the files, each part with only its type.
   defp put_body(options, %{body: body, body_type: "related"}, vars) do
     rendered = body |> render(vars) |> compact()
 
     {files, data} =
       Enum.split_with(rendered, fn {_key, value} -> match?({:bobbin_file, _}, value) end)
 
+    {texts, data} = Enum.split_with(data, fn {_key, value} -> is_binary(value) end)
+
     parts =
       Enum.map(data, fn {_key, value} ->
         {:ok, "application/json; charset=UTF-8", JSON.encode!(unfile(value))}
       end) ++
+        Enum.map(texts, fn {_key, text} -> {:ok, "text/plain; charset=UTF-8", text} end) ++
         Enum.map(files, fn {_key, {:bobbin_file, ref}} ->
           with {:ok, content} <- Bobbin.Files.read(ref),
                do: {:ok, ref["mime"] || "application/octet-stream", content_binary(content)}

@@ -407,7 +407,8 @@ type as `Content-Type` unless the request sets one:
 ```
 
 `related` sends `multipart/related`, as Google's uploads take it: each map of the body
-as a JSON part, then the file, each part with only its type:
+as a JSON part, then each text as a text part and the file, each part with only its
+type:
 
 ```yaml
 request:

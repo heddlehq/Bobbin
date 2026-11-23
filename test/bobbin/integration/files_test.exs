@@ -45,6 +45,17 @@ defmodule Bobbin.Integration.FilesTest do
           metadata: {name: "{{fields.title}}"}
           media: "{{fields.document}}"
 
+    - name: Upload Text
+      fields:
+        - {name: text, label: Text}
+      request:
+        method: POST
+        path: upload/files
+        body_type: related
+        body:
+          metadata: {name: notes.txt}
+          media: "{{fields.text}}"
+
     - name: Attach
       fields:
         - {name: document, label: File, type: file, required: true}
@@ -150,6 +161,23 @@ defmodule Bobbin.Integration.FilesTest do
              Request.run(i, "Upload Related", %{"document" => ref, "title" => "T"}, %{},
                plug: plug
              )
+  end
+
+  test "a text in a related body goes as a text part", %{integration: i} do
+    plug = fn conn ->
+      [type] = Plug.Conn.get_req_header(conn, "content-type")
+      [_, boundary] = Regex.run(~r{boundary=(\S+)}, type)
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+      assert body ==
+               "--#{boundary}\r\ncontent-type: application/json; charset=UTF-8\r\n\r\n" <>
+                 ~s({"name":"notes.txt"}) <>
+                 "\r\n--#{boundary}\r\ncontent-type: text/plain; charset=UTF-8\r\n\r\nolá\r\n--#{boundary}--\r\n"
+
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} = Request.run(i, "Upload Text", %{"text" => "olá"}, %{}, plug: plug)
   end
 
   test "| base64 puts a file, or a text, in a JSON body", %{integration: i, ref: ref} do
