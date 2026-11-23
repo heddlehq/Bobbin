@@ -203,6 +203,37 @@ defmodule Bobbin.Integration.RequestTest do
     assert {:ok, _} = Request.run(drive, "Create Folder", %{"name" => "A"}, %{}, plug: plug)
   end
 
+  test "an empty field in a list is left out, and so is a list left empty" do
+    yaml = """
+    id: drive
+    name: Drive
+    version: 1.0.0
+    base_url: https://drive.test/
+    actions:
+      - name: Copy
+        fields: [{name: folder, label: Folder}, {name: tag, label: Tag}]
+        request:
+          method: POST
+          path: copy
+          body: {parents: ["{{fields.folder}}"], tags: [a, "{{fields.tag}}"], keep: []}
+    """
+
+    {:ok, drive} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(self(), {:body, JSON.decode!(body)})
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} = Request.run(drive, "Copy", %{}, %{}, plug: plug)
+    assert_received {:body, %{"tags" => ["a"], "keep" => []} = body}
+    refute Map.has_key?(body, "parents")
+
+    assert {:ok, _} = Request.run(drive, "Copy", %{"folder" => "F"}, %{}, plug: plug)
+    assert_received {:body, %{"parents" => ["F"]}}
+  end
+
   test "_merge spreads a map into the one that holds it" do
     vars = %{"fields" => %{"custom" => %{"customfield_1" => "x", "summary" => "B"}, "s" => "A"}}
     body = %{"fields" => %{"summary" => "{{fields.s}}", "_merge" => "{{fields.custom}}"}}

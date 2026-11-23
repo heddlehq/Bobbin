@@ -681,6 +681,15 @@ defmodule Bobbin.Integration.Request do
     |> Map.new()
   end
 
+  # Inside a list too, and a list its fields left empty goes, while a [] written as
+  # such stays.
+  defp compact([_ | _] = list) do
+    case list |> Enum.map(&compact/1) |> Enum.reject(&(&1 in [nil, "", %{}])) do
+      [] -> nil
+      kept -> kept
+    end
+  end
+
   defp compact(value), do: value
 
   defp call(request, integration) do
