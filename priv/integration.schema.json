@@ -13,7 +13,12 @@
     "category": {"type": "string"},
     "author": {"type": "string"},
     "homepage": {"type": "string"},
-    "base_url": {"type": "string", "pattern": "^https?://"},
+    "base_url": {"type": "string", "pattern": "^(https?://|\\{\\{\\s*credential\\.)", "description": "May take values of the credential: https://{{credential.subdomain}}.example.com/ or {{credential.url}}/api/."},
+    "i18n": {
+      "type": "object",
+      "description": "Texts in other languages, by locale (pt-BR): description, and under actions.<name> and triggers.<name> a name, a description and fields.<field name> labels.",
+      "additionalProperties": {"type": "object"}
+    },
     "credential": {
       "type": "object",
       "required": ["auth"],
@@ -79,6 +84,7 @@
     "properties": {
       "name": {"type": "string", "minLength": 1},
       "description": {"type": "string"},
+      "resource": {"type": "string", "description": "What the action works on, like Contact or Deal. Heddle groups actions by it."},
       "fields": {"type": "array", "items": {"$ref": "#/$defs/field"}},
       "request": {
         "type": "object",
@@ -121,7 +127,7 @@
       "properties": {
         "name": {"type": "string"},
         "label": {"type": "string"},
-        "type": {"enum": ["text", "textarea", "number", "select"]},
+        "type": {"enum": ["text", "textarea", "number", "select", "boolean", "json", "multiselect", "datetime"]},
         "default": {},
         "options": {
           "type": "array",

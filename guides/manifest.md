@@ -31,7 +31,22 @@ base_url: https://api.example.com/v1/
 | `name` | What the sidebar shows. Nodes are called "Name: Action". |
 | `version` | Like `1.0.0`. Raise it when you change the manifest. |
 | `icon` | A [heroicon](https://heroicons.com), like `hero-envelope` or `hero-cube-solid`. |
-| `base_url` | The start of every request's address. |
+| `base_url` | The start of every request's address. It may take values of the credential, see below. |
+
+## An address per account
+
+When each account has its own address, like `acme.zendesk.com`, or the service runs
+on the user's own server, `base_url` takes it from the credential:
+
+```yaml
+base_url: "https://{{credential.subdomain}}.zendesk.com/api/v2/"
+# or, for a server the user runs:
+base_url: "{{credential.url}}/api/v4/"
+```
+
+A value inside the host may hold only letters, digits, `.` and `-`. A value at the
+start must be a whole `http` or `https` address, with no user, query or fragment.
+Anything else fails the request, so a credential can't send it somewhere else.
 
 ## Templates
 
@@ -133,12 +148,20 @@ actions:
 
 | Key | What it is |
 | --- | --- |
-| `fields[].type` | `text` (the default), `textarea`, `number` or `select`, with `options`. |
+| `resource` | What the action works on, like `Contact` or `Deal`. Heddle groups actions by it. |
+| `fields[].type` | `text` (the default), `textarea`, `number`, `select` or `multiselect` with `options`, `boolean`, `json` or `datetime`. |
+| `fields[].required` | The action fails, saying so, when the field is empty. |
 | `request.method` | `GET`, `POST`, `PUT`, `PATCH` or `DELETE`. |
 | `request.path` | Joined to `base_url`. It may hold templates. |
 | `request.query` | The parameters of the address, as a map. |
 | `request.headers` | Headers of this request, besides the credential's. |
 | `request.body_type` | `json`, the default, or `form`. |
+
+A `boolean` sends `true` or `false`. A `json` field sends what its JSON describes,
+a map or a list, and fails when it isn't JSON. A `multiselect` sends a list, and
+takes one written as `a, b` too. A `datetime` sends the text as written, once it
+reads as an ISO 8601 date (`2026-01-31` or `2026-01-31T09:00:00Z`). An empty field is
+left out of the request.
 
 Filters in the address:
 
@@ -244,6 +267,23 @@ triggers:
 
 The first call only records what's already there, so a new trigger doesn't start a
 flow for every old item.
+
+## Other languages
+
+`i18n` holds the texts in other languages, by locale. Heddle shows them to people who
+use that language, and the English ones where a text is missing:
+
+```yaml
+i18n:
+  pt-BR:
+    description: Contatos e negócios no Acme.
+    actions:
+      Create Contact:
+        name: Criar contato
+        description: Cria um contato.
+        fields:
+          email: E-mail
+```
 
 ## Sharing it
 

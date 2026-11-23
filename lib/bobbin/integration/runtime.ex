@@ -107,10 +107,14 @@ defmodule Bobbin.Integration.Runtime do
   end
 
   # A field the node doesn't set takes its default, which may point at the last step.
+  # What isn't text (false, a list from a multiselect) needs no rendering.
   defp fields(action, context) do
     Map.new(action.fields, fn field ->
-      template = context[field.name] || field.default
-      {field.name, Template.render(template, context)}
+      case Map.get(context, field.name, field.default) do
+        template when is_binary(template) -> {field.name, Template.render(template, context)}
+        nil -> {field.name, field.default}
+        value -> {field.name, value}
+      end
     end)
   end
 end

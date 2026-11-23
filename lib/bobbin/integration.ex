@@ -48,6 +48,26 @@ defmodule Bobbin.Integration do
   placeholder keeps the value's type. Values that end up empty are left out of the
   query and the body, so optional fields need no extra syntax.
 
+  ## Fields
+
+  `type` is `text` (the default), `textarea`, `number`, `select` or `multiselect`
+  (with `options`), `boolean`, `json` or `datetime`. Each is sent as its kind: a
+  boolean as `true` or `false`, JSON as what it describes, a multiselect as a list. A
+  `required` field that is empty fails the action. `resource` on an action names
+  what it works on (Contact, Deal), for Heddle to group actions by.
+
+  ## Address
+
+  `base_url` may take values of the credential, for services with an address per
+  account (`https://{{credential.subdomain}}.zendesk.com/`) or run by the user
+  (`{{credential.url}}/api/`). See the guide for what such a value may hold.
+
+  ## Languages
+
+  `i18n` maps a locale (`pt-BR`) to its texts: `description`, and under
+  `actions.<name>` or `triggers.<name>` a `name`, a `description` and `fields` labels.
+  See `translate/3`.
+
   ## Credential `auth` types
 
     * `bearer`: `token`
@@ -103,6 +123,7 @@ defmodule Bobbin.Integration do
           icon: String.t(),
           category: String.t(),
           base_url: String.t(),
+          i18n: map(),
           credential: map() | nil,
           errors: map(),
           actions: [map()],
@@ -111,7 +132,7 @@ defmodule Bobbin.Integration do
 
   @auth_types ~w(bearer header query basic oauth2 none)
   @methods ~w(GET POST PUT PATCH DELETE)
-  @field_types ~w(text textarea number select)
+  @field_types ~w(text textarea number select boolean json multiselect datetime)
   @pagination_types ~w(cursor offset link)
   @id ~r/\A[a-z][a-z0-9_]*\z/
   @version ~r/\A\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?\z/
@@ -152,7 +173,13 @@ defmodule Bobbin.Integration do
       |> required(map, "id", @id, "a lowercase id, like acme_crm")
       |> required(map, "name")
       |> required(map, "version", @version, "a version like 1.0.0")
-      |> required(map, "base_url", ~r/\Ahttps?:\/\//, "a URL starting with http")
+      |> required(
+        map,
+        "base_url",
+        ~r/\A(https?:\/\/|\{\{\s*credential\.)/,
+        "a URL starting with http"
+      )
+      |> check_i18n(map["i18n"])
       |> check_credential(map["credential"])
       |> check_actions(map["actions"])
       |> check_triggers(map["triggers"])
@@ -163,6 +190,18 @@ defmodule Bobbin.Integration do
   @doc "The action called `name`, or nil."
   @spec action(t(), String.t()) :: map() | nil
   def action(integration, name), do: Enum.find(integration.actions, &(&1.name == name))
+
+  @doc """
+  The text at `path` of the manifest's translation to `locale`, or nil when it has
+  none: `translate(integration, "pt-BR", ["actions", "Create Ticket", "name"])`.
+  """
+  @spec translate(t(), String.t(), [String.t()]) :: String.t() | nil
+  def translate(integration, locale, path) do
+    case get_in(integration.i18n, [locale | path]) do
+      text when is_binary(text) -> text
+      _other -> nil
+    end
+  end
 
   @doc "The trigger called `name`, or nil."
   @spec trigger(t(), String.t()) :: map() | nil
@@ -181,6 +220,17 @@ defmodule Bobbin.Integration do
         ["#{key} is required" | errors]
     end
   end
+
+  defp check_i18n(errors, nil), do: errors
+
+  defp check_i18n(errors, i18n) when is_map(i18n) do
+    Enum.reduce(i18n, errors, fn
+      {_locale, texts}, errors when is_map(texts) -> errors
+      {locale, _texts}, errors -> ["i18n.#{locale} must be a map" | errors]
+    end)
+  end
+
+  defp check_i18n(errors, _other), do: ["i18n must map each language to its texts" | errors]
 
   defp check_credential(errors, nil), do: errors
 
@@ -325,8 +375,8 @@ defmodule Bobbin.Integration do
               | errors
             ]
 
-          type == "select" and not is_list(field["options"]) ->
-            ["#{where}.fields[#{index}] is a select and needs options" | errors]
+          type in ["select", "multiselect"] and not is_list(field["options"]) ->
+            ["#{where}.fields[#{index}] is a #{type} and needs options" | errors]
 
           true ->
             errors
@@ -352,6 +402,7 @@ defmodule Bobbin.Integration do
       icon: map["icon"] || "hero-puzzle-piece",
       category: map["category"] || id,
       base_url: map["base_url"],
+      i18n: map["i18n"] || %{},
       credential: normalize_credential(map["credential"], map),
       errors: %{
         ok_path: get_in(map, ["errors", "ok_path"]),
@@ -387,6 +438,7 @@ defmodule Bobbin.Integration do
     %{
       name: action["name"],
       description: action["description"] || "",
+      resource: action["resource"],
       fields: Enum.map(action["fields"] || [], &normalize_field/1),
       request: %{
         method: request["method"],
@@ -402,15 +454,21 @@ defmodule Bobbin.Integration do
   end
 
   defp normalize_field(field) do
+    type = field["type"] || "text"
+
     %{
       name: field["name"],
       label: field["label"] || field["name"],
-      type: field["type"] || "text",
-      default: to_string(field["default"] || ""),
+      type: type,
+      default: default(type, field["default"]),
       options: field["options"],
       secret: field["secret"] == true,
       required: field["required"] == true,
       strip: field["strip"]
     }
   end
+
+  # Text fields keep their default as text, the others as written: false, a map, a list.
+  defp default(type, value) when type in ~w(boolean json multiselect), do: value
+  defp default(_type, value), do: to_string(value || "")
 end

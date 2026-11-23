@@ -120,7 +120,7 @@ defmodule Bobbin.IntegrationTest do
     action = schema["$defs"]["action"]["properties"]
 
     assert Map.keys(action) |> Enum.sort() ==
-             ~w(description fields name output pagination request)
+             ~w(description fields name output pagination request resource)
 
     assert schema["properties"]["actions"]["items"] == %{"$ref" => "#/$defs/action"}
 

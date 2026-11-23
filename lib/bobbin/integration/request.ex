@@ -70,12 +70,64 @@ defmodule Bobbin.Integration.Request do
   defp item_id(_item, _path), do: nil
 
   defp perform(integration, action, fields, credential, req_options) do
-    vars = %{"fields" => field_values(action, fields), "credential" => credential || %{}}
-    request = build(integration, action, vars, req_options)
+    credential = credential || %{}
 
-    case action.pagination do
-      nil -> request |> call(integration) |> output(action, vars)
-      pagination -> paginate(request, integration, pagination, action)
+    with {:ok, values} <- field_values(action, fields),
+         vars = %{"fields" => values, "credential" => credential},
+         {:ok, base_url} <- base_url(integration, credential) do
+      request = build(integration, base_url, action, vars, req_options)
+
+      case action.pagination do
+        nil -> request |> call(integration) |> output(action, vars)
+        pagination -> paginate(request, integration, pagination, action)
+      end
+    end
+  end
+
+  ## Address
+
+  @host_value ~r/\A[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?\z/
+
+  # The address may take values of the credential: the account's subdomain, or the
+  # whole address of a server the user runs. Neither may point the request at
+  # another path, a user or a query.
+  defp base_url(integration, credential) do
+    template = integration.base_url
+    leading = Regex.match?(~r/\A\{\{/, template)
+
+    bad =
+      @placeholder
+      |> Regex.scan(template, return: :index)
+      |> Enum.find_value(fn [{start, length}, _scope, _name] ->
+        [_match, scope, name] = Regex.run(@placeholder, binary_part(template, start, length))
+        value = text(get_in(%{"credential" => credential, "fields" => %{}}, [scope, name]))
+
+        ok? =
+          if start == 0 and leading,
+            do: server_url?(value),
+            else: Regex.match?(@host_value, value)
+
+        if ok?, do: nil, else: name
+      end)
+
+    case bad do
+      nil ->
+        {:ok, render(template, %{"credential" => credential, "fields" => %{}})}
+
+      name ->
+        {:error,
+         "#{integration.name}: the #{name} in the credential isn't valid for the address."}
+    end
+  end
+
+  defp server_url?(value) do
+    case URI.parse(value) do
+      %URI{scheme: scheme, host: host, userinfo: nil, query: nil, fragment: nil}
+      when scheme in ["http", "https"] and is_binary(host) and host != "" ->
+        true
+
+      _other ->
+        false
     end
   end
 
@@ -105,23 +157,81 @@ defmodule Bobbin.Integration.Request do
   ## Fields
 
   defp field_values(action, fields) do
-    Map.new(action.fields, fn field ->
+    Enum.reduce_while(action.fields, {:ok, %{}}, fn field, {:ok, acc} ->
       value = Map.get(fields || %{}, field.name)
       value = if value in [nil, ""], do: field.default, else: value
-      {field.name, cast(field, value)}
+
+      case cast(field, value) do
+        {:error, message} ->
+          {:halt, {:error, message}}
+
+        {:ok, value} when value in [nil, "", []] and field.required ->
+          {:halt, {:error, "#{field.label} is required."}}
+
+        {:ok, value} ->
+          {:cont, {:ok, Map.put(acc, field.name, value)}}
+      end
     end)
   end
 
   defp cast(%{type: "number"} = field, value) do
-    integer(value) || integer(field.default)
+    {:ok, integer(value) || integer(field.default)}
+  end
+
+  defp cast(%{type: "boolean"}, value) do
+    case value |> to_string() |> String.trim() |> String.downcase() do
+      truthy when truthy in ~w(true 1 yes on) -> {:ok, true}
+      falsy when falsy in ~w(false 0 no off) -> {:ok, false}
+      _empty -> {:ok, nil}
+    end
+  end
+
+  defp cast(%{type: "json"} = field, value) when is_binary(value) do
+    case String.trim(value) do
+      "" ->
+        {:ok, nil}
+
+      text ->
+        case JSON.decode(text) do
+          {:ok, decoded} -> {:ok, decoded}
+          {:error, _reason} -> {:error, "#{field.label} must be JSON, like {\"key\": \"value\"}."}
+        end
+    end
+  end
+
+  defp cast(%{type: "multiselect"}, value) when is_binary(value) do
+    text = String.trim(value)
+
+    case String.starts_with?(text, "[") && JSON.decode(text) do
+      {:ok, list} when is_list(list) ->
+        {:ok, list}
+
+      _comma_separated ->
+        list = text |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
+        {:ok, if(list == [], do: nil, else: list)}
+    end
+  end
+
+  defp cast(%{type: "multiselect"}, []), do: {:ok, nil}
+
+  defp cast(%{type: "datetime"} = field, value) when is_binary(value) do
+    text = String.trim(value)
+
+    cond do
+      text == "" -> {:ok, nil}
+      match?({:ok, _, _}, DateTime.from_iso8601(text)) -> {:ok, text}
+      match?({:ok, _}, NaiveDateTime.from_iso8601(text)) -> {:ok, text}
+      match?({:ok, _}, Date.from_iso8601(text)) -> {:ok, text}
+      true -> {:error, "#{field.label} must be a date and time, like 2026-01-31T09:00:00Z."}
+    end
   end
 
   defp cast(%{strip: chars}, value) when is_binary(chars) and is_binary(value) do
-    value |> String.trim() |> String.trim(chars)
+    {:ok, value |> String.trim() |> String.trim(chars)}
   end
 
-  defp cast(_field, value) when is_binary(value), do: String.trim(value)
-  defp cast(_field, value), do: value
+  defp cast(_field, value) when is_binary(value), do: {:ok, String.trim(value)}
+  defp cast(_field, value), do: {:ok, value}
 
   defp integer(value) when is_integer(value), do: value
 
@@ -134,12 +244,12 @@ defmodule Bobbin.Integration.Request do
 
   ## Request
 
-  defp build(integration, action, vars, req_options) do
+  defp build(integration, base_url, action, vars, req_options) do
     request = action.request
 
     options = [
       method: request.method |> String.downcase() |> String.to_atom(),
-      url: integration.base_url <> render(request.path, vars),
+      url: base_url <> render(request.path, vars),
       params: request.query |> render(vars) |> compact() |> Map.to_list(),
       headers: request.headers |> render(vars) |> compact() |> Map.to_list(),
       retry: false
