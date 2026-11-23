@@ -118,6 +118,117 @@ The other types:
 - `query`: the key goes in the address, with `name` and `value`.
 - `none`: for public APIs. The integration then needs no credential.
 
+### Tokens Bobbin fetches
+
+OAuth 2.0 between servers, with no Connect button. Bobbin asks for a token with the
+client ID and secret, keeps it until it expires and asks again when the service
+refuses it. `token_auth: body` sends the ID and secret in the form instead of in the
+`Authorization` header:
+
+```yaml
+auth:
+  type: client_credentials
+  token_url: https://example.com/oauth/token
+  client_id: "{{credential.client_id}}"
+  client_secret: "{{credential.client_secret}}"
+  scopes: [read]
+```
+
+A login that trades a user and a password for a token. `token_path` is where the
+answer holds it (`header:X-Token` for a header), `expires_path` or `expires_in`
+(seconds, 600 when neither is there) how long it lasts. `apply` puts the token on
+each request, as a bearer token when left out:
+
+```yaml
+auth:
+  type: login
+  request:
+    method: POST
+    path: auth/login          # or url: for another address
+    body:
+      username: "{{credential.username}}"
+      password: "{{credential.password}}"
+  token_path: data.token
+  apply:
+    type: header
+    name: X-Session
+    value: "{{auth.token}}"
+```
+
+### Signed requests
+
+A JSON Web Token, signed for each request with `HS256`, `HS384`, `HS512` (a secret;
+`key_encoding: hex` or `base64` when it is written that way), `RS256` or `ES256` (a
+private key in PEM). `iat` and `exp` are added, `lifetime` seconds apart (300 when
+left out):
+
+```yaml
+auth:
+  type: jwt
+  algorithm: HS256
+  key: "{{credential.secret}}"
+  key_encoding: hex
+  header:
+    kid: "{{credential.key_id}}"
+  claims:
+    aud: /admin/
+  apply:
+    type: header
+    name: Authorization
+    value: "Ghost {{auth.token}}"
+```
+
+An HMAC of each request. `message` may use `{{request.method}}`, `{{request.path}}`,
+`{{request.query}}` (as sent), `{{request.body}}` (as sent), `{{request.timestamp}}`
+(milliseconds) and `{{request.timestamp_s}}`. `params` are added to the address and
+`headers` to the request before signing. The signature goes in a `header` or in the
+`query`, in `hex` or `base64`:
+
+```yaml
+auth:
+  type: hmac
+  algorithm: sha256         # sha1, sha256 or sha512
+  secret: "{{credential.secret}}"
+  params:
+    timestamp: "{{request.timestamp}}"
+  headers:
+    X-Api-Key: "{{credential.key}}"
+  message: "{{request.query}}"
+  signature:
+    query: signature
+```
+
+AWS Signature Version 4:
+
+```yaml
+auth:
+  type: aws_sigv4
+  access_key_id: "{{credential.access_key_id}}"
+  secret_access_key: "{{credential.secret_access_key}}"
+  region: "{{credential.region}}"
+  service: sqs
+```
+
+### Client certificates
+
+Services that check who calls them by certificate, like the Brazilian banks' Pix
+APIs, take one in the credential, next to `auth`. Both are PEM:
+
+```yaml
+credential:
+  fields:
+    - {name: certificate, label: Certificate (PEM), type: textarea}
+    - {name: private_key, label: Private key (PEM), type: textarea, secret: true}
+  tls:
+    cert: "{{credential.certificate}}"
+    key: "{{credential.private_key}}"
+  auth:
+    type: client_credentials
+    ...
+```
+
+Bobbin also uses the certificate to ask for the token.
+
 ## Actions
 
 Each action is a node. Its `fields` are what a person fills in the node, and its

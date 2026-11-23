@@ -7,10 +7,11 @@ defmodule Bobbin.Integration.Request do
   """
 
   alias Bobbin.Integration
+  alias Bobbin.Integration.Auth
 
   @max_pages 100
-  @placeholder ~r/\{\{\s*(fields|credential)\.([A-Za-z0-9_]+)\s*\}\}/
-  @single_placeholder ~r/\A\{\{\s*(fields|credential)\.([A-Za-z0-9_]+)\s*\}\}\z/
+  @placeholder ~r/\{\{\s*(fields|credential|auth|request)\.([A-Za-z0-9_]+)\s*\}\}/
+  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request)\.([A-Za-z0-9_]+)\s*\}\}\z/
 
   @doc """
   Runs the action called `action_name`.
@@ -75,14 +76,41 @@ defmodule Bobbin.Integration.Request do
     with {:ok, values} <- field_values(action, fields),
          vars = %{"fields" => values, "credential" => credential},
          {:ok, base_url} <- base_url(integration, credential) do
-      request = build(integration, base_url, action, vars, req_options)
+      send = fn ->
+        request = build(base_url, action, vars, req_options)
 
-      case action.pagination do
-        nil -> request |> call(integration) |> output(action, vars)
-        pagination -> paginate(request, integration, pagination, action)
+        with {:ok, request, key} <- Auth.put(request, integration, base_url, vars, req_options) do
+          result =
+            case action.pagination do
+              nil -> request |> call(integration) |> output(action, vars)
+              pagination -> paginate(request, integration, pagination, action)
+            end
+
+          {:sent, result, key}
+        end
+      end
+
+      case send.() do
+        # A token Bobbin keeps was refused: fetch a new one and try once more.
+        {:sent, {:unauthorized, _message}, key} when key != nil ->
+          Auth.forget(key)
+
+          case send.() do
+            {:sent, result, _key} -> unauthorized_as_error(result)
+            error -> error
+          end
+
+        {:sent, result, _key} ->
+          unauthorized_as_error(result)
+
+        error ->
+          error
       end
     end
   end
+
+  defp unauthorized_as_error({:unauthorized, message}), do: {:error, message}
+  defp unauthorized_as_error(result), do: result
 
   ## Address
 
@@ -244,7 +272,7 @@ defmodule Bobbin.Integration.Request do
 
   ## Request
 
-  defp build(integration, base_url, action, vars, req_options) do
+  defp build(base_url, action, vars, req_options) do
     request = action.request
 
     options = [
@@ -257,7 +285,6 @@ defmodule Bobbin.Integration.Request do
 
     options
     |> put_body(request, vars)
-    |> authenticate(integration.credential, vars)
     |> Keyword.merge(req_options)
     |> Req.new()
   end
@@ -269,36 +296,6 @@ defmodule Bobbin.Integration.Request do
 
   defp put_body(options, %{body: body}, vars),
     do: Keyword.put(options, :json, body |> render(vars) |> compact())
-
-  defp authenticate(options, nil, _vars), do: options
-
-  defp authenticate(options, %{auth: auth}, vars) do
-    auth = render(auth, vars)
-
-    case auth["type"] do
-      "bearer" ->
-        Keyword.put(options, :auth, {:bearer, text(auth["token"])})
-
-      "oauth2" ->
-        Keyword.put(options, :auth, {:bearer, text(vars["credential"]["access_token"])})
-
-      "basic" ->
-        Keyword.put(
-          options,
-          :auth,
-          {:basic, "#{text(auth["username"])}:#{text(auth["password"])}"}
-        )
-
-      "header" ->
-        Keyword.update!(options, :headers, &[{auth["name"], text(auth["value"])} | &1])
-
-      "query" ->
-        Keyword.update!(options, :params, &[{auth["name"], text(auth["value"])} | &1])
-
-      _none ->
-        options
-    end
-  end
 
   # Empty values are left out, so an optional field needs no syntax of its own.
   defp compact(map) when is_map(map) do
@@ -314,6 +311,9 @@ defmodule Bobbin.Integration.Request do
     case Req.request(request) do
       {:ok, %{status: status} = response} when status in 200..299 ->
         check_ok(response, integration)
+
+      {:ok, %{status: 401} = response} ->
+        {:unauthorized, refused(integration, response)}
 
       {:ok, response} ->
         {:error, refused(integration, response)}

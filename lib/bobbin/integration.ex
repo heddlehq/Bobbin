@@ -76,7 +76,17 @@ defmodule Bobbin.Integration do
     * `basic`: `username` and `password`
     * `oauth2`: `authorize_url`, `token_url` and `scopes`. The host runs the
       authorization and passes the access token as `{{credential.access_token}}`.
+    * `client_credentials`: `token_url`, `client_id`, `client_secret`, `scopes`.
+      Bobbin fetches the token and keeps it, see `Bobbin.Integration.Auth`.
+    * `login`: a `request` that returns a token at `token_path`, put on each request
+      by `apply` (an auth of the types above, with `{{auth.token}}`).
+    * `jwt`: a token signed for each request (`algorithm`, `key`, `claims`).
+    * `hmac`: a signature of each request (`secret`, `message`, `signature`).
+    * `aws_sigv4`: `access_key_id`, `secret_access_key`, `region`, `service`.
     * `none`
+
+  `credential.tls` holds a client certificate (`cert` and `key`, PEM) for services
+  that ask for one.
 
   ## Responses
 
@@ -130,7 +140,7 @@ defmodule Bobbin.Integration do
           triggers: [map()]
         }
 
-  @auth_types ~w(bearer header query basic oauth2 none)
+  @auth_types ~w(bearer header query basic oauth2 client_credentials login jwt hmac aws_sigv4 none)
   @methods ~w(GET POST PUT PATCH DELETE)
   @field_types ~w(text textarea number select boolean json multiselect datetime)
   @pagination_types ~w(cursor offset link)
@@ -237,9 +247,16 @@ defmodule Bobbin.Integration do
   defp check_credential(errors, credential) when is_map(credential) do
     errors = check_fields(errors, "credential", credential["fields"] || [])
 
+    errors =
+      case credential["tls"] do
+        nil -> errors
+        %{"cert" => cert, "key" => key} when is_binary(cert) and is_binary(key) -> errors
+        _other -> ["credential.tls needs a cert and a key" | errors]
+      end
+
     case credential["auth"] do
-      %{"type" => type} when type in @auth_types ->
-        errors
+      %{"type" => type} = auth when type in @auth_types ->
+        check_auth(errors, type, auth)
 
       %{"type" => type} ->
         [
@@ -253,6 +270,40 @@ defmodule Bobbin.Integration do
   end
 
   defp check_credential(errors, _other), do: ["credential must be a map" | errors]
+
+  @auth_keys %{
+    "client_credentials" => ~w(token_url client_id client_secret),
+    "login" => ~w(request token_path),
+    "jwt" => ~w(key),
+    "hmac" => ~w(secret message signature),
+    "aws_sigv4" => ~w(access_key_id secret_access_key region service)
+  }
+
+  defp check_auth(errors, type, auth) do
+    errors =
+      @auth_keys
+      |> Map.get(type, [])
+      |> Enum.reject(&Map.has_key?(auth, &1))
+      |> Enum.reduce(errors, &["credential.auth needs #{&1} for #{type}" | &2])
+
+    jwt = Bobbin.Integration.Auth.jwt_algorithms()
+    hmac = Bobbin.Integration.Auth.hmac_algorithms()
+
+    cond do
+      type == "jwt" and Map.get(auth, "algorithm", "HS256") not in jwt ->
+        ["credential.auth.algorithm must be one of #{Enum.join(jwt, ", ")}" | errors]
+
+      type == "hmac" and Map.get(auth, "algorithm", "sha256") not in hmac ->
+        ["credential.auth.algorithm must be one of #{Enum.join(hmac, ", ")}" | errors]
+
+      type == "hmac" and not match?(%{"query" => _}, auth["signature"]) and
+          not match?(%{"header" => _}, auth["signature"]) ->
+        ["credential.auth.signature needs a header or a query name" | errors]
+
+      true ->
+        errors
+    end
+  end
 
   defp check_actions(errors, [_ | _] = actions) do
     names = Enum.map(actions, &(is_map(&1) && &1["name"]))
@@ -420,7 +471,8 @@ defmodule Bobbin.Integration do
       kind: credential["kind"] || map["id"],
       label: credential["label"] || map["name"],
       fields: Enum.map(credential["fields"] || [], &normalize_field/1),
-      auth: credential["auth"]
+      auth: credential["auth"],
+      tls: credential["tls"]
     }
   end
 
