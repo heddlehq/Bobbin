@@ -21,7 +21,8 @@ defmodule Bobbin.Integration.Definition do
 
   @doc """
   The node definition of `action`. Besides what `Bobbin.Service.definition/4` gives,
-  it has the `integration` id, the `resource` the action works on (or nil), and
+  it has the `integration` id, the `resource` the action works on (or nil, also as
+  `group`, which Heddle lists nodes under), and
   `i18n`, its texts in each language the manifest has, see `translations/3`.
 
   Each of its `ui_fields` has `type` (as the manifest says, but a `number` is
@@ -42,6 +43,8 @@ defmodule Bobbin.Integration.Definition do
     |> Map.merge(%{
       integration: manifest.id,
       resource: action.resource,
+      # Hosts list a service's nodes under the resource they work on.
+      group: action.resource,
       i18n: translations(manifest, "actions", action)
     })
   end

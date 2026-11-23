@@ -47,6 +47,7 @@ defmodule Bobbin.Integration.DefinitionTest do
     definition = Definition.definition(m, Integration.action(m, "Create Issue"))
 
     assert definition.resource == "Issue"
+    assert definition.group == "Issue"
     assert definition.integration == "forge"
 
     assert definition.i18n == %{
