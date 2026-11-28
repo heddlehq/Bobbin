@@ -44,6 +44,29 @@ end
 `Bobbin.Service` also reads files, JSON and numbers from the node's fields, and
 `Bobbin.Connections` keeps a driver's connection open between runs.
 
+## What the host does for a package
+
+Since 0.7, `Bobbin.Host` does more than credentials, for packages that keep state or
+start flows, like Heddle's Agents:
+
+- **Start runs** of the flows that begin at a trigger of the package
+  (`start_runs/1`), now or at a time (`at:`), one at a time per `lane:`, and cancel
+  one that hasn't begun (`cancel_run/2`).
+- **Keep data** between runs (`store_get/4`, `store_put/5`, `store_delete/4`,
+  `store_list/4`). With `with_run:`, what a run writes is kept only if it ends well.
+- **Call the AI page's models** (`ai_connection/2`), and charge each call to the step
+  (`record_usage/1`).
+- **Wait**: a node pauses the run without holding a worker, until a call
+  (`Bobbin.Node.wait_for_call/2`, ended by `resume_run/4`) or a person's decision
+  (`Bobbin.Node.wait_for_approval/2`). With `again: true`, the handler is called again
+  when the wait ends, with `"resumed"` in its context.
+- **Use tools**: a handler that answers `{:with_tools, fun}` gets the nodes connected
+  to its `tools` output, and calls them by name.
+
+A node module can also give the host a **panel** for its drawer (`c:Bobbin.Node.panel/2`),
+and a trigger a **public chat page** (`c:Bobbin.Node.chat_message/4` and
+`c:Bobbin.Node.chat_history/3`).
+
 ## The package
 
 Its `mix.exs` names the nodes, so Heddle finds them:
@@ -57,7 +80,7 @@ def application do
 end
 
 defp deps do
-  [{:bobbin, "~> 0.5"}, {:acme_client, "~> 1.0"}]
+  [{:bobbin, "~> 0.7"}, {:acme_client, "~> 1.0"}]
 end
 ```
 

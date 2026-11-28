@@ -23,4 +23,24 @@ defmodule Bobbin.NodeWaitTest do
     assert DateTime.diff(at, DateTime.utc_now()) in 58..60
     assert outputs == %{"call" => "replied", "timeout" => "late"}
   end
+
+  test "again calls the handler back, with the data kept in the wait" do
+    assert {:wait, wait} = Bobbin.Node.wait_for_call("ask/1", again: true, data: %{"n" => 1})
+    assert wait["again"] == true
+    assert wait["data"] == %{"n" => 1}
+
+    assert {:wait, plain} = Bobbin.Node.wait_for_call("ask/1", again: false)
+    refute Map.has_key?(plain, "again")
+    refute Map.has_key?(plain, "data")
+  end
+
+  test "waits for a person's approval, with what to approve" do
+    assert {:wait, wait} =
+             Bobbin.Node.wait_for_approval("Refund R$ 50?", details: "Order 12", again: true)
+
+    assert wait["call"] == true
+    assert wait["approval"] == %{"title" => "Refund R$ 50?", "details" => "Order 12"}
+    assert wait["again"] == true
+    refute Map.has_key?(wait, "key")
+  end
 end
