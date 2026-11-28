@@ -310,6 +310,22 @@ defmodule Bobbin.Integration.AuthTest do
              })
   end
 
+  test "an empty client certificate is left out, for a sandbox that takes none" do
+    i =
+      manifest(
+        "tls_optional",
+        "type: bearer\ntoken: \"{{credential.key}}\"",
+        "  tls:\n    cert: \"{{credential.secret}}\"\n    key: \"{{credential.secret}}\""
+      )
+
+    plug = fn conn -> Req.Test.json(conn, %{"ok" => true}) end
+
+    assert {:ok, %{"ok" => true}} = run(i, plug, %{"key" => "K", "secret" => ""})
+
+    assert {:error, "The client certificate isn't valid PEM."} =
+             run(i, plug, %{"key" => "K", "secret" => "nope"})
+  end
+
   test "the manifest checks the new auth types" do
     assert {:error, errors} =
              Integration.parse("""
