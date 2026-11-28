@@ -545,9 +545,28 @@ defmodule Bobbin.Integration.Request do
       if action.output["file"], do: Keyword.put(options, :decode_body, false), else: options
 
     with {:ok, options} <- put_body(options, request, vars) do
-      {:ok, options |> Keyword.merge(req_options) |> Req.new()}
+      {:ok, options |> Keyword.merge(req_options) |> Req.new() |> spaces_as_percent_20()}
     end
   end
+
+  # Req writes a space in the query as `+`, as forms do. Some servers, like the OData
+  # ones of Banco Central, read `+` as itself, so it goes as `%20`, which every server
+  # reads as a space. A `+` in a value was already written as `%2B`. Right after the
+  # params are put, so a step that signs the address signs what is sent.
+  defp spaces_as_percent_20(request) do
+    steps =
+      Enum.flat_map(request.request_steps, fn
+        {:put_params, _fun} = step -> [step, {:bobbin_query_spaces, &query_spaces/1}]
+        step -> [step]
+      end)
+
+    %{request | request_steps: steps}
+  end
+
+  defp query_spaces(%{url: %URI{query: query} = url} = request) when is_binary(query),
+    do: %{request | url: %{url | query: String.replace(query, "+", "%20")}}
+
+  defp query_spaces(request), do: request
 
   # A list of plain values goes as a,b,c, or once per value when the key ends in []
   # (tags[]=a&tags[]=b); a map, or a list holding one, as JSON.

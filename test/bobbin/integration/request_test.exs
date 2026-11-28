@@ -133,6 +133,31 @@ defmodule Bobbin.Integration.RequestTest do
     assert {:ok, _} = Request.run(acme, "Find", fields, %{}, plug: plug)
   end
 
+  test "a space in the query goes as %20, and a plus as %2B" do
+    yaml = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    base_url: https://acme.test/
+    actions:
+      - name: Find
+        fields:
+          - {name: q, label: Query}
+        request: {method: GET, path: things, query: {"$filter": "Name eq '{{fields.q}}'", "$orderby": Date desc}}
+    """
+
+    {:ok, acme} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      assert conn.query_string == "%24filter=Name%20eq%20%27a%2Bb%27&%24orderby=Date%20desc"
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.query_params["$filter"] == "Name eq 'a+b'"
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} = Request.run(acme, "Find", %{"q" => "a+b"}, %{}, plug: plug)
+  end
+
   test "_if leaves a map out when its value is empty, so fixed keys don't go alone" do
     due = %{"dateTime" => "{{fields.due}}", "timeZone" => "UTC", "_if" => "{{fields.due}}"}
     body = %{"title" => "T", "dueDateTime" => due}
