@@ -5,6 +5,7 @@ defmodule Bobbin.Application do
   @impl true
   def start(_type, _args) do
     Bobbin.Integration.Auth.create_table()
+    Bobbin.TestHost.create_table()
 
     children = [
       {Registry, keys: :unique, name: Bobbin.Connections.Registry},

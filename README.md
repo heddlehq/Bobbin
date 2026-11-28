@@ -30,7 +30,7 @@ Add `bobbin` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:bobbin, "~> 0.5"}
+    {:bobbin, "~> 0.7"}
   ]
 end
 ```
