@@ -62,6 +62,10 @@ defmodule Bobbin.Integration.Request do
           {:ok, items} when is_list(items) ->
             {:ok, for(item <- items, id = item_id(item, trigger.poll.id), do: {id, item})}
 
+          # Some APIs answer 204, with no body, when there is nothing new.
+          {:ok, empty} when empty in [nil, ""] ->
+            {:ok, []}
+
           {:ok, _other} ->
             {:error, "#{trigger_name} must return a list, see output.path."}
 
@@ -764,6 +768,9 @@ defmodule Bobbin.Integration.Request do
         {:error, "Could not reach #{integration.name}: #{Exception.message(reason)}"}
     end
   end
+
+  # A 204 has no body to check.
+  defp check_ok(%{status: 204} = response, _integration), do: {:ok, response}
 
   # Some APIs answer 200 when something failed, with the reason in the body.
   defp check_ok(response, %{errors: errors} = integration) do
