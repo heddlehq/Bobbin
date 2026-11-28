@@ -4,13 +4,14 @@ defmodule Bobbin.MixProject do
   def project do
     [
       app: :bobbin,
-      version: "0.5.0",
+      version: "0.5.1",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       description: description(),
       package: package(),
       deps: deps(),
-      source_url: "https://github.com/heddlehq/Bobbin"
+      source_url: "https://github.com/heddlehq/Bobbin",
+      docs: docs()
     ]
   end
 
@@ -36,12 +37,20 @@ defmodule Bobbin.MixProject do
     "Elixir SDK for building custom integrations and extensions for Heddle."
   end
 
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md", "guides/manifest.md", "guides/packages.md"],
+      groups_for_extras: [Guides: ~r{guides/}]
+    ]
+  end
+
   defp package do
     [
       name: "bobbin",
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/heddlehq/Bobbin"},
-      files: ~w(lib priv mix.exs README.md LICENSE)
+      files: ~w(lib priv guides mix.exs README.md LICENSE)
     ]
   end
 end
