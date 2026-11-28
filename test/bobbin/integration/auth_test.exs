@@ -261,6 +261,50 @@ defmodule Bobbin.Integration.AuthTest do
     assert {:ok, _} = run(i, plug, %{"key" => "K", "secret" => "ab"})
   end
 
+  test "jwt signs a multipart body with a file, and sends what it signed" do
+    {:ok, i} =
+      Integration.parse("""
+      id: jwt_multipart
+      name: Svc
+      version: 1.0.0
+      base_url: https://api.svc.test/
+      credential:
+        fields:
+          - {name: secret}
+        auth:
+          type: jwt
+          algorithm: HS256
+          key: "{{credential.secret}}"
+          claims:
+            size: "{{request.body}}"
+      actions:
+        - name: Upload
+          fields:
+            - {name: image, type: file}
+          request:
+            method: POST
+            path: images
+            body_type: multipart
+            body:
+              file: "{{fields.image}}"
+      """)
+
+    plug = fn conn ->
+      "Bearer " <> token = header(conn, "authorization")
+      [_h, c, _s] = String.split(token, ".")
+      {:ok, sent, conn} = Plug.Conn.read_body(conn)
+      assert decode(c)["size"] == sent
+      assert sent =~ ~s(filename="photo.png")
+      assert sent =~ "PNGDATA"
+      Req.Test.json(conn, %{"ok" => true})
+    end
+
+    {:ok, ref} = Bobbin.Files.store("PNGDATA", %{"name" => "photo.png", "mime" => "image/png"})
+
+    assert {:ok, %{"ok" => true}} =
+             Request.run(i, "Upload", %{"image" => ref}, %{"secret" => "S"}, plug: plug)
+  end
+
   test "jwt RS256 and ES256 sign with a private key in PEM" do
     for {alg, key} <- [{"RS256", {:rsa, 2048, 65_537}}, {"ES256", {:namedCurve, :secp256r1}}] do
       private = :public_key.generate_key(key)
