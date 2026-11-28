@@ -377,6 +377,43 @@ defmodule Bobbin.Integration.RequestTest do
     assert {:ok, _} = Request.run(acme, "Ping", %{}, %{}, plug: plug)
   end
 
+  test "a form sends a list once per value, and a map as JSON, like Mailgun's o:tag" do
+    yaml = """
+    id: gun
+    name: Gun
+    version: 1.0.0
+    base_url: https://api.test/
+    actions:
+      - name: Send
+        fields:
+          - {name: tags, label: Tags}
+          - {name: vars, label: Variables, type: json}
+        request:
+          method: POST
+          path: messages
+          body_type: form
+          body: {to: a@b.c, "o:tag": {_each: "{{fields.tags}}", _value: "{{item}}"}, "t:variables": "{{fields.vars}}"}
+    """
+
+    {:ok, gun} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(self(), {:form, body})
+      Req.Test.json(conn, %{})
+    end
+
+    fields = %{"tags" => "news, promo", "vars" => %{"name" => "Ana"}}
+    assert {:ok, _} = Request.run(gun, "Send", fields, %{}, plug: plug)
+
+    assert_received {:form, body}
+
+    assert body |> String.split("&") |> Enum.sort() ==
+             Enum.sort(
+               ~w(o%3Atag=news o%3Atag=promo t%3Avariables=%7B%22name%22%3A%22Ana%22%7D to=a%40b.c)
+             )
+  end
+
   test "a header written as a map goes as JSON, in ASCII, like Dropbox's Dropbox-API-Arg" do
     yaml = """
     id: box
