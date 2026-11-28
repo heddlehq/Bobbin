@@ -41,6 +41,17 @@ defmodule Bobbin.HostTest do
     end
   end
 
+  test "answers the AI a test sets, and reports usage to the test" do
+    assert {:error, "No AI provider" <> _} = Host.ai_connection(%{})
+
+    Application.put_env(:bobbin, :test_ai, %{model: "openai:gpt-4o-mini", options: []})
+    assert {:ok, %{model: "openai:gpt-4o-mini"}} = Host.ai_connection(%{}, :text)
+    Application.delete_env(:bobbin, :test_ai)
+
+    assert :ok = Host.record_usage(%{input_tokens: 3})
+    assert_received {:bobbin_usage, %{input_tokens: 3}}
+  end
+
   test "keeps what resumes a run" do
     assert :ok = Host.resume_run(1, "run-1", "ask/1", %{"reply" => "yes"})
     assert {:ok, %{"reply" => "yes"}} = TestHost.resumed("run-1", "ask/1")
@@ -83,5 +94,6 @@ defmodule Bobbin.HostTest do
              Host.start_runs(%{workspace_id: 1, node_type: "Acme: Trigger"})
 
     assert {:error, "This app can't keep data" <> _} = Host.store_get(1, "acme", "a")
+    assert :ok = Host.record_usage(%{input_tokens: 1})
   end
 end

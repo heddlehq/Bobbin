@@ -16,6 +16,10 @@ defmodule Bobbin.TestHost do
   place, to try what a node does with a flow that ran. `resume_run/4` keeps what it
   got, which `resumed/2` reads.
 
+  `ai_connection/2` answers what `:bobbin, :test_ai` holds, `%{model: ..., options:
+  ...}` or a function of the context and capability, and `record_usage/1` sends
+  `{:bobbin_usage, usage}` to the process calling it.
+
   The store keeps records in memory, and `with_run` keeps them at once, since no run
   ends here. `reset/0` empties both, for a test's `setup`.
   """
@@ -39,6 +43,21 @@ defmodule Bobbin.TestHost do
       fun when is_function(fun, 1) -> fun.(opts)
       values -> {:ok, values}
     end
+  end
+
+  @impl true
+  def ai_connection(context, capability) do
+    case Application.get_env(:bobbin, :test_ai) do
+      nil -> {:error, "No AI provider is set up for this test."}
+      fun when is_function(fun, 2) -> fun.(context, capability)
+      connection -> {:ok, connection}
+    end
+  end
+
+  @impl true
+  def record_usage(usage) do
+    send(self(), {:bobbin_usage, usage})
+    :ok
   end
 
   @impl true

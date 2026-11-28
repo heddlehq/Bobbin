@@ -71,6 +71,20 @@ defmodule Bobbin.Host do
               :ok | {:error, :not_found | String.t()}
 
   @doc """
+  How to call a model for a node, from the AI credential and model the node's context
+  picked, or the host's defaults: `{:ok, %{model: model, options: options}}`, to pass
+  to `ReqLLM`. `capability` is what the model has to do, like `:text`.
+  """
+  @callback ai_connection(context :: map(), capability :: atom()) ::
+              {:ok, %{model: term(), options: keyword()}} | {:error, String.t()}
+
+  @doc """
+  Adds what a model call cost to the step running, with `input_tokens`,
+  `output_tokens` and `total_cost`, as `ReqLLM` reports it.
+  """
+  @callback record_usage(usage :: map()) :: :ok
+
+  @doc """
   Resumes the run `run_id` (the `"run_id"` of a node's context) of `workspace_id`,
   paused by `Bobbin.Node.wait_for_call/2` with `key`, with `value` as its `result`. A
   run still running is waited for a moment, so an answer that comes back fast isn't
@@ -133,7 +147,9 @@ defmodule Bobbin.Host do
               opts :: keyword()
             ) :: {:ok, [record()]}
 
-  @optional_callbacks start_runs: 1,
+  @optional_callbacks ai_connection: 2,
+                      record_usage: 1,
+                      start_runs: 1,
                       cancel_run: 2,
                       resume_run: 4,
                       store_get: 4,
@@ -150,6 +166,17 @@ defmodule Bobbin.Host do
 
   @doc "Cancels a run through the host, see `c:cancel_run/2`."
   def cancel_run(workspace_id, run_id), do: call(:cancel_run, [workspace_id, run_id])
+
+  @doc "How to call a model through the host, see `c:ai_connection/2`."
+  def ai_connection(context, capability \\ :text),
+    do: call(:ai_connection, [context, capability])
+
+  @doc "Records what a model call cost, see `c:record_usage/1`. A host without it ignores it."
+  def record_usage(usage) do
+    host = host()
+    Code.ensure_loaded(host)
+    if function_exported?(host, :record_usage, 1), do: host.record_usage(usage), else: :ok
+  end
 
   @doc "Resumes a run through the host, see `c:resume_run/4`."
   def resume_run(workspace_id, run_id, key, value),
@@ -182,6 +209,7 @@ defmodule Bobbin.Host do
     end
   end
 
+  defp describe(:ai_connection), do: "call an AI model"
   defp describe(:start_runs), do: "start runs of other flows"
   defp describe(:cancel_run), do: "cancel runs"
   defp describe(:resume_run), do: "resume runs"
