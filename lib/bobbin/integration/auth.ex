@@ -397,11 +397,21 @@ defmodule Bobbin.Integration.Auth do
 
   defp put_tls(request, nil, _vars), do: {:ok, request}
 
+  # A credential whose certificate is optional, like a bank's sandbox, leaves both
+  # fields empty: the request goes without one.
   defp put_tls(request, tls, vars) do
-    with {:ok, options} <- tls_options(tls, vars) do
-      {:ok, Req.merge(request, connect_options: options)}
+    rendered = Request.render(tls, vars)
+
+    if blank?(rendered["cert"]) and blank?(rendered["key"]) do
+      {:ok, request}
+    else
+      with {:ok, options} <- tls_options(tls, vars) do
+        {:ok, Req.merge(request, connect_options: options)}
+      end
     end
   end
+
+  defp blank?(value), do: value in [nil, ""] or (is_binary(value) and String.trim(value) == "")
 
   # The token request goes through the same certificate.
   defp request_tls(request) do
