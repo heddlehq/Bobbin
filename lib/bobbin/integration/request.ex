@@ -594,12 +594,27 @@ defmodule Bobbin.Integration.Request do
 
   defp query_pair(pair), do: pair
 
+  # A form repeats the key for each value of a plain list (o:tag=a&o:tag=b), and sends
+  # a map, or a list holding one, as JSON.
+  defp form_pairs({key, list}) when is_list(list) do
+    if Enum.all?(list, &plain?/1),
+      do: Enum.map(list, &{key, &1}),
+      else: [{key, JSON.encode!(list)}]
+  end
+
+  defp form_pairs({key, map}) when is_map(map), do: [{key, JSON.encode!(map)}]
+  defp form_pairs(pair), do: [pair]
+
   defp put_body(options, %{body: nil}, _vars), do: {:ok, options}
 
   defp put_body(options, %{body: body, body_type: "form"}, vars),
     do:
       {:ok,
-       Keyword.put(options, :form, body |> render(vars) |> compact() |> unfile() |> Map.to_list())}
+       Keyword.put(
+         options,
+         :form,
+         body |> render(vars) |> compact() |> unfile() |> Enum.flat_map(&form_pairs/1)
+       )}
 
   defp put_body(options, %{body: body, body_type: "multipart"}, vars) do
     body
