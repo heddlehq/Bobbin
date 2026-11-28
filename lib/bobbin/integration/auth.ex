@@ -260,6 +260,14 @@ defmodule Bobbin.Integration.Auth do
 
   ## Signing each request
 
+  # A multipart body with a file is a stream, read as it is sent. Signing needs its
+  # bytes, so it is read here once and sent as read: what goes out is what was signed.
+  defp settle_body(%{body: body} = req) when is_nil(body) or is_binary(body) or is_list(body),
+    do: req
+
+  defp settle_body(req),
+    do: %{req | body: req.body |> Enum.to_list() |> IO.iodata_to_binary()}
+
   defp request_vars(req) do
     body =
       case req.body do
@@ -280,6 +288,7 @@ defmodule Bobbin.Integration.Auth do
   end
 
   defp sign_hmac(req, auth, vars) do
+    req = settle_body(req)
     request = request_vars(req)
     vars = Map.put(vars, "request", request)
 
@@ -319,6 +328,7 @@ defmodule Bobbin.Integration.Auth do
   end
 
   defp sign_jwt(req, auth, vars) do
+    req = settle_body(req)
     vars = Map.put(vars, "request", request_vars(req))
     rendered = Request.render(Map.drop(auth, ["apply"]), vars)
     now = System.system_time(:second)
