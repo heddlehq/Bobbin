@@ -433,6 +433,12 @@ defmodule Bobbin.Integration.RequestTest do
                Request.poll(i, "New Ticket", %{}, %{}, plug: plug)
     end
 
+    test "an empty answer, like a 204, means nothing new", %{integration: i} do
+      plug = &Plug.Conn.send_resp(&1, 204, "")
+
+      assert {:ok, []} = Request.poll(i, "New Ticket", %{}, %{}, plug: plug)
+    end
+
     test "an unknown trigger is an error", %{integration: i} do
       assert {:error, "Acme has no trigger called Nope."} = Request.poll(i, "Nope", %{}, %{})
     end
