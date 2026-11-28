@@ -728,8 +728,8 @@
           "type": "string"
         },
         "format": {
-          "enum": ["unix", "unix_ms"],
-          "description": "For a datetime: send it as seconds (unix) or milliseconds (unix_ms) since 1970."
+          "enum": ["unix", "unix_ms", "number"],
+          "description": "For a datetime: send it as seconds (unix) or milliseconds (unix_ms) since 1970. For a select or multiselect: number sends the value as a number, like IDs from options_from."
         },
         "options_from": {
           "type": "object",

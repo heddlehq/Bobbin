@@ -355,7 +355,7 @@ defmodule Bobbin.Integration.Request do
       value = Map.get(fields || %{}, field.name)
       value = if value in [nil, ""], do: field.default, else: value
 
-      case cast(field, value) do
+      case field |> cast(value) |> as_number(field) do
         {:error, message} ->
           {:halt, {:error, message}}
 
@@ -482,6 +482,28 @@ defmodule Bobbin.Integration.Request do
   defp ok_datetime(error), do: error
   defp ok_naive({:ok, naive}), do: DateTime.from_naive(naive, "Etc/UTC")
   defp ok_naive(error), do: error
+
+  # `format: number` sends a select's value as a number, for IDs listed by
+  # `options_from` that the service wants as numbers.
+  defp as_number({:ok, list}, %{format: "number"}) when is_list(list),
+    do: {:ok, Enum.map(list, &number/1)}
+
+  defp as_number({:ok, value}, %{format: "number"}) when is_binary(value),
+    do: {:ok, number(value)}
+
+  defp as_number(result, _field), do: result
+
+  defp number(value) when is_binary(value) do
+    text = String.trim(value)
+
+    case {Integer.parse(text), Float.parse(text)} do
+      {{integer, ""}, _float} -> integer
+      {_integer, {float, ""}} -> float
+      _other -> value
+    end
+  end
+
+  defp number(value), do: value
 
   defp option_value(options, value) do
     case Enum.find(options, &(is_map(&1) and to_string(&1["value"]) == to_string(value))) do

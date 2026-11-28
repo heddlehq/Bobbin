@@ -38,6 +38,8 @@ defmodule Bobbin.Integration.FieldsTest do
         - {name: due, label: Due, type: datetime}
         - {name: start, label: Start, type: datetime, format: unix_ms}
         - {name: until, label: Until, type: datetime, format: unix}
+        - {name: list, label: List, type: select, format: number, options_from: {request: {method: GET, path: lists}}}
+        - {name: lists, label: Lists, type: multiselect, format: number, options_from: {request: {method: GET, path: lists}}}
       request:
         method: POST
         path: tickets
@@ -49,6 +51,8 @@ defmodule Bobbin.Integration.FieldsTest do
           due_at: "{{fields.due}}"
           start: "{{fields.start}}"
           until: "{{fields.until}}"
+          list: "{{fields.list}}"
+          lists: "{{fields.lists}}"
   """
 
   setup do
@@ -121,6 +125,13 @@ defmodule Bobbin.Integration.FieldsTest do
 
     assert {:error, "Start must be a date and time" <> _} =
              run(i, %{"subject" => "Hi", "start" => "soon"})
+  end
+
+  test "a select with format number sends its value as a number", %{integration: i} do
+    assert {:ok, _} = run(i, %{"subject" => "Hi", "list" => "7", "lists" => "2, 3.5, x"})
+    assert_received {:request, _host, _path, body}
+    assert body["list"] == 7
+    assert body["lists"] == [2, 3.5, "x"]
   end
 
   test "bad JSON, a bad date or a missing required field is an error", %{integration: i} do
