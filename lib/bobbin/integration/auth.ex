@@ -204,6 +204,16 @@ defmodule Bobbin.Integration.Auth do
         _json -> if request["body"], do: [json: request["body"]], else: []
       end
 
+    # Some logins take the user and password as Basic auth, like Correios'.
+    basic =
+      case request["basic"] do
+        %{"username" => user, "password" => password} ->
+          [auth: {:basic, "#{text(user)}:#{text(password)}"}]
+
+        _none ->
+          []
+      end
+
     [
       method: (request["method"] || "POST") |> String.downcase() |> String.to_atom(),
       url: url,
@@ -211,6 +221,7 @@ defmodule Bobbin.Integration.Auth do
       retry: false
     ]
     |> Keyword.merge(body)
+    |> Keyword.merge(basic)
     |> Keyword.merge(tls)
     |> Keyword.merge(req_options)
     |> Req.request()

@@ -139,6 +139,35 @@ defmodule Bobbin.Integration.AuthTest do
     assert {:ok, %{"session" => "SESS"}} = run(i, plug)
   end
 
+  test "login: may send the user and password as Basic auth" do
+    i =
+      manifest("login_#{System.unique_integer([:positive])}", """
+      type: login
+      request:
+        method: POST
+        path: token
+        basic: {username: "{{credential.key}}", password: "{{credential.secret}}"}
+        body: {numero: "123"}
+      token_path: token
+      apply: {type: bearer, token: "{{auth.token}}"}
+      """)
+
+    plug = fn conn ->
+      case conn.request_path do
+        "/token" ->
+          assert header(conn, "authorization") == "Basic " <> Base.encode64("K:S")
+          {:ok, body, conn} = Plug.Conn.read_body(conn)
+          assert JSON.decode!(body) == %{"numero" => "123"}
+          Req.Test.json(conn, %{"token" => "T"})
+
+        "/items" ->
+          Req.Test.json(conn, %{"auth" => header(conn, "authorization")})
+      end
+    end
+
+    assert {:ok, %{"auth" => "Bearer T"}} = run(i, plug)
+  end
+
   test "a login that fails says so" do
     i =
       manifest("login_#{System.unique_integer([:positive])}", """
