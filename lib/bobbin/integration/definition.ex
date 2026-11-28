@@ -19,25 +19,50 @@ defmodule Bobbin.Integration.Definition do
     end)
   end
 
-  @doc "The node definition of `action`."
+  @doc """
+  The node definition of `action`. Besides what `Bobbin.Service.definition/4` gives,
+  it has the `integration` id, the `resource` the action works on (or nil, also as
+  `group`, which Heddle lists nodes under), and
+  `i18n`, its texts in each language the manifest has, see `translations/3`.
+
+  Each of its `ui_fields` has `type` (as the manifest says, but a `number` is
+  `text`), `required`, and `options_from: true` when
+  the host lists its options from the service, see
+  `Bobbin.Integration.Runtime.options/4`.
+  """
   def definition(manifest, action) do
     service = %{
       title: manifest.name,
       category: String.to_atom(manifest.category),
       credential: manifest.credential && manifest.credential.kind,
-      icon: manifest.icon
+      icon: icon(manifest)
     }
 
     service
     |> Integration.definition(action.name, action.description, ui_fields(action))
-    |> Map.put(:integration, manifest.id)
+    |> Map.merge(%{
+      integration: manifest.id,
+      resource: action.resource,
+      # Hosts list a service's nodes under the resource they work on.
+      group: action.resource,
+      i18n: translations(manifest, "actions", action)
+    })
   end
+
+  @doc """
+  The icon of `manifest`'s nodes: `logo-<id>` when it has a `logo`, which the host
+  shows the logo under (Heddle makes a CSS class of each one), or else its `icon`.
+  """
+  def icon(%{logo: logo, id: id}) when is_binary(logo), do: "logo-" <> id
+  def icon(manifest), do: manifest.icon
 
   @trigger_color "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
 
   @doc """
-  The node definition of `trigger`: a node a flow starts from, once for each new item
-  the service returns, see `Bobbin.Integration.Runtime.poll/3`.
+  The node definition of `trigger`: a node a flow starts from, once for each new item.
+  A polling trigger has `poll` (see `Bobbin.Integration.Runtime.poll/3`); a webhook
+  trigger has `webhook`, with `manual: true` when the person pastes its address in the
+  service by hand (see `Bobbin.Integration.Webhook`).
   """
   def trigger_definition(manifest, trigger) do
     name = "#{manifest.name}: #{trigger.name}"
@@ -50,25 +75,57 @@ defmodule Bobbin.Integration.Definition do
       category: String.to_atom(manifest.category),
       color: @trigger_color,
       description: trigger.description,
-      icon: manifest.icon,
+      icon: icon(manifest),
       inputs: [],
       outputs: [:exec],
       show: true,
       ui_fields: credential ++ ui_fields(trigger),
       integration: manifest.id,
-      poll: %{trigger: trigger.name, every: trigger.poll.every}
+      resource: trigger.resource,
+      i18n: translations(manifest, "triggers", trigger)
     }
+    |> Map.merge(start(trigger))
   end
+
+  defp start(%{webhook: %{} = webhook} = trigger),
+    do: %{webhook: %{trigger: trigger.name, manual: webhook.register == nil}}
+
+  defp start(trigger), do: %{poll: %{trigger: trigger.name, every: trigger.poll.every}}
+
+  @doc """
+  The texts of an action or trigger in each language the manifest translates:
+  `%{"pt-BR" => %{name: "...", description: "...", fields: %{"title" => "Título"}}}`,
+  with only the texts it has.
+  """
+  def translations(manifest, kind, step) do
+    for {locale, texts} <- manifest.i18n || %{},
+        %{} = own <- [get_in(texts, [kind, step.name]) || %{}],
+        into: %{} do
+      labels = if is_map(own["fields"]), do: own["fields"], else: %{}
+
+      {locale,
+       %{
+         name: text(own["name"]),
+         description: text(own["description"]),
+         fields: for({name, label} <- labels, is_binary(label), into: %{}, do: {name, label})
+       }}
+    end
+  end
+
+  defp text(value) when is_binary(value), do: value
+  defp text(_value), do: nil
 
   defp ui_fields(action) do
     Enum.map(action.fields, fn field ->
       %{
-        type: if(field.type == "select", do: :select, else: String.to_atom(field.type)),
+        type: String.to_atom(field.type),
         name: String.to_atom(field.name),
         label: field.label,
-        default: field.default
+        default: field.default,
+        required: field.required
       }
       |> put_options(field.options)
+      |> then(&if(field.options_from, do: Map.put(&1, :options_from, true), else: &1))
       |> Map.update!(:type, &if(&1 == :number, do: :text, else: &1))
     end)
   end

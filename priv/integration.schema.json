@@ -3,37 +3,255 @@
   "$id": "https://raw.githubusercontent.com/heddlehq/Bobbin/main/priv/integration.schema.json",
   "title": "Heddle integration manifest",
   "type": "object",
-  "required": ["id", "name", "version", "base_url", "actions"],
+  "required": [
+    "id",
+    "name",
+    "version",
+    "base_url",
+    "actions"
+  ],
   "properties": {
-    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-    "name": {"type": "string", "minLength": 1},
-    "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$"},
-    "description": {"type": "string"},
-    "icon": {"type": "string"},
-    "category": {"type": "string"},
-    "author": {"type": "string"},
-    "homepage": {"type": "string"},
-    "base_url": {"type": "string", "pattern": "^https?://"},
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "icon": {
+      "type": "string"
+    },
+    "logo": {
+      "type": "string",
+      "description": "The service's own logo, an SVG of at most 30 KB, without scripts.",
+      "pattern": "^\\s*<svg[\\s\\S]*</svg>\\s*$"
+    },
+    "category": {
+      "type": "string"
+    },
+    "author": {
+      "type": "string"
+    },
+    "homepage": {
+      "type": "string"
+    },
+    "base_url": {
+      "type": "string",
+      "pattern": "^(https?://|\\{\\{\\s*credential\\.)",
+      "description": "May take values of the credential: https://{{credential.subdomain}}.example.com/ or {{credential.url}}/api/."
+    },
+    "headers": {
+      "type": "object",
+      "description": "Headers of every request, like an API version. A request's own headers win.",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean",
+          "object"
+        ]
+      }
+    },
+    "i18n": {
+      "type": "object",
+      "description": "Texts in other languages, by locale (pt-BR): description, and under actions.<name> and triggers.<name> a name, a description and fields.<field name> labels.",
+      "additionalProperties": {
+        "type": "object"
+      }
+    },
     "credential": {
       "type": "object",
-      "required": ["auth"],
+      "required": [
+        "auth"
+      ],
       "properties": {
-        "kind": {"type": "string"},
-        "label": {"type": "string"},
-        "fields": {"type": "array", "items": {"$ref": "#/$defs/field"}},
+        "kind": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        },
         "auth": {
           "type": "object",
-          "required": ["type"],
+          "required": [
+            "type"
+          ],
           "properties": {
-            "type": {"enum": ["bearer", "header", "query", "basic", "oauth2", "none"]},
-            "token": {"type": "string"},
-            "name": {"type": "string"},
-            "value": {"type": "string"},
-            "username": {"type": "string"},
-            "password": {"type": "string"},
-            "authorize_url": {"type": "string"},
-            "token_url": {"type": "string"},
-            "scopes": {"type": "array", "items": {"type": "string"}}
+            "type": {
+              "enum": [
+                "bearer",
+                "header",
+                "query",
+                "basic",
+                "oauth2",
+                "client_credentials",
+                "login",
+                "jwt",
+                "hmac",
+                "aws_sigv4",
+                "none"
+              ]
+            },
+            "token": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            },
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            },
+            "authorize_url": {
+              "type": "string"
+            },
+            "token_url": {
+              "type": "string"
+            },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "client_id": {
+              "type": "string"
+            },
+            "client_secret": {
+              "type": "string"
+            },
+            "token_auth": {
+              "enum": [
+                "basic",
+                "body"
+              ]
+            },
+            "token_path": {
+              "type": "string"
+            },
+            "expires_path": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string"
+            },
+            "key_encoding": {
+              "enum": [
+                "raw",
+                "hex",
+                "base64"
+              ]
+            },
+            "secret": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "encoding": {
+              "enum": [
+                "hex",
+                "base64"
+              ]
+            },
+            "access_key_id": {
+              "type": "string"
+            },
+            "secret_access_key": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string"
+            },
+            "service": {
+              "type": "string"
+            },
+            "session_token": {
+              "type": "string"
+            },
+            "algorithm": {
+              "enum": [
+                "HS256",
+                "HS384",
+                "HS512",
+                "RS256",
+                "ES256",
+                "sha1",
+                "sha256",
+                "sha512"
+              ]
+            },
+            "expires_in": {
+              "type": "integer"
+            },
+            "lifetime": {
+              "type": "integer"
+            },
+            "request": {
+              "type": "object"
+            },
+            "apply": {
+              "type": "object",
+              "description": "How the token is put on each request: an auth of type bearer, header or query, with {{auth.token}}."
+            },
+            "claims": {
+              "type": "object"
+            },
+            "header": {
+              "type": "object"
+            },
+            "params": {
+              "type": "object"
+            },
+            "headers": {
+              "type": "object"
+            },
+            "signature": {
+              "type": "object",
+              "properties": {
+                "header": {
+                  "type": "string"
+                },
+                "query": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tls": {
+          "type": "object",
+          "required": [
+            "cert",
+            "key"
+          ],
+          "description": "A client certificate, in PEM.",
+          "properties": {
+            "cert": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string"
+            }
           }
         }
       }
@@ -41,29 +259,265 @@
     "errors": {
       "type": "object",
       "properties": {
-        "ok_path": {"type": "string"},
-        "message_path": {"type": "string"}
+        "ok_path": {
+          "type": "string"
+        },
+        "error_path": {
+          "type": "string",
+          "description": "A field of the body that holds errors when there are any, like GraphQL's errors."
+        },
+        "message_path": {
+          "type": "string"
+        }
       }
     },
     "actions": {
       "type": "array",
       "minItems": 1,
-      "items": {"$ref": "#/$defs/action"}
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/action"
+          },
+          {
+            "required": [
+              "request"
+            ]
+          }
+        ]
+      }
     },
     "triggers": {
       "type": "array",
       "description": "Start a flow when something new shows up: the request is called every poll.every minutes, and the flow starts once for each item whose poll.id it hadn't seen.",
       "items": {
         "allOf": [
-          {"$ref": "#/$defs/action"},
+          {
+            "$ref": "#/$defs/action"
+          },
           {
             "type": "object",
             "properties": {
               "poll": {
                 "type": "object",
                 "properties": {
-                  "every": {"type": "integer", "minimum": 1, "default": 5},
-                  "id": {"type": "string", "minLength": 1, "default": "id"}
+                  "every": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 5
+                  },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "default": "id"
+                  }
+                }
+              },
+              "webhook": {
+                "type": "object",
+                "description": "The service calls Heddle: register and unregister tell it about the address, signature checks each event, output picks its items. See Bobbin.Integration.Webhook.",
+                "properties": {
+                  "register": {
+                    "type": "object",
+                    "required": [
+                      "request"
+                    ],
+                    "properties": {
+                      "request": {
+                        "type": "object",
+                        "required": [
+                          "method",
+                          "path"
+                        ],
+                        "properties": {
+                          "method": {
+                            "enum": [
+                              "GET",
+                              "POST",
+                              "PUT",
+                              "PATCH",
+                              "DELETE"
+                            ]
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "headers": {
+                            "type": "object"
+                          },
+                          "query": {
+                            "type": "object"
+                          },
+                          "body": {},
+                          "base_url": {
+                            "type": "string",
+                            "description": "This request's own address, in place of the manifest's base_url."
+                          },
+                          "body_type": {
+                            "enum": [
+                              "json",
+                              "form"
+                            ]
+                          }
+                        }
+                      },
+                      "id_path": {
+                        "type": "string"
+                      },
+                      "secret_path": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "unregister": {
+                    "type": "object",
+                    "required": [
+                      "request"
+                    ],
+                    "properties": {
+                      "request": {
+                        "type": "object",
+                        "required": [
+                          "method",
+                          "path"
+                        ],
+                        "properties": {
+                          "method": {
+                            "enum": [
+                              "GET",
+                              "POST",
+                              "PUT",
+                              "PATCH",
+                              "DELETE"
+                            ]
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "headers": {
+                            "type": "object"
+                          },
+                          "query": {
+                            "type": "object"
+                          },
+                          "body": {},
+                          "base_url": {
+                            "type": "string",
+                            "description": "This request's own address, in place of the manifest's base_url."
+                          },
+                          "body_type": {
+                            "enum": [
+                              "json",
+                              "form"
+                            ]
+                          }
+                        }
+                      },
+                      "id_path": {
+                        "type": "string"
+                      },
+                      "secret_path": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "signature": {
+                    "type": "object",
+                    "properties": {
+                      "header": {
+                        "type": "string"
+                      },
+                      "prefix": {
+                        "type": "string"
+                      },
+                      "basic": {
+                        "type": "object",
+                        "description": "The user and password the service calls with, in Authorization.",
+                        "properties": {"username": {"type": "string"}, "password": {"type": "string"}}
+                      },
+                      "secret": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "pattern": {
+                        "type": "string"
+                      },
+                      "timestamp_header": {
+                        "type": "string"
+                      },
+                      "algorithm": {
+                        "enum": [
+                          "sha1",
+                          "sha256",
+                          "sha512"
+                        ]
+                      },
+                      "encoding": {
+                        "enum": [
+                          "hex",
+                          "base64"
+                        ]
+                      },
+                      "tolerance": {
+                        "type": "integer"
+                      },
+                      "token": {
+                        "type": "string",
+                        "description": "The secret the service sends as it is, in the header."
+                      }
+                    },
+                    "required": [
+                      "header"
+                    ],
+                    "oneOf": [
+                      {
+                        "required": [
+                          "secret"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "token"
+                        ]
+                      }
+                    ]
+                  },
+                  "challenge": {
+                    "type": "object",
+                    "properties": {
+                      "query": {
+                        "type": "string"
+                      },
+                      "token_query": {
+                        "type": "string"
+                      },
+                      "token": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "type": "string"
+                      },
+                      "method": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "output": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "pick": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -74,66 +528,317 @@
   },
   "$defs": {
     "action": {
-    "type": "object",
-    "required": ["name", "request"],
-    "properties": {
-      "name": {"type": "string", "minLength": 1},
-      "description": {"type": "string"},
-      "fields": {"type": "array", "items": {"$ref": "#/$defs/field"}},
-      "request": {
-        "type": "object",
-        "required": ["method", "path"],
-        "properties": {
-          "method": {"enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]},
-          "path": {"type": "string"},
-          "headers": {"type": "object"},
-          "query": {"type": "object"},
-          "body": {},
-          "body_type": {"enum": ["json", "form"]}
-        }
-      },
-      "output": {
-        "type": "object",
-        "properties": {
-          "path": {"type": "string"},
-          "pick": {"type": "array", "items": {"type": "string"}},
-          "value": {}
-        }
-      },
-      "pagination": {
-        "type": "object",
-        "required": ["type", "items_path"],
-        "properties": {
-          "type": {"enum": ["cursor", "offset", "link"]},
-          "items_path": {"type": "string"},
-          "page_size": {"type": "integer", "minimum": 1},
-          "limit_param": {"type": "string"},
-          "cursor_param": {"type": "string"},
-          "next_path": {"type": "string"},
-          "offset_param": {"type": "string"}
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "resource": {
+          "type": "string",
+          "description": "What the action works on, like Contact or Deal. Heddle groups actions by it."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        },
+        "request": {
+          "type": "object",
+          "required": [
+            "method",
+            "path"
+          ],
+          "properties": {
+            "method": {
+              "enum": [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE"
+              ]
+            },
+            "path": {
+              "type": "string"
+            },
+            "headers": {
+              "type": "object"
+            },
+            "query": {
+              "type": "object"
+            },
+            "body": {},
+            "base_url": {
+              "type": "string",
+              "description": "This request's own address, in place of the manifest's base_url."
+            },
+            "body_type": {
+              "enum": [
+                "json",
+                "form",
+                "multipart",
+                "related",
+                "binary"
+              ]
+            }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "pick": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "value": {},
+            "file": {
+              "description": "Keep the answer as a file: true, or {name: template}. The node returns {file: {id, name, mime, size}}.",
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "pagination": {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "cursor",
+                "offset",
+                "page",
+                "link"
+              ]
+            },
+            "items_path": {
+              "type": "string"
+            },
+            "page_size": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "limit_param": {
+              "type": "string"
+            },
+            "cursor_param": {
+              "type": "string"
+            },
+            "next_path": {
+              "type": "string"
+            },
+            "offset_param": {
+              "type": "string"
+            },
+            "page_param": {
+              "type": "string"
+            },
+            "first_page": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "has_more_path": {
+              "type": "string",
+              "description": "Where the answer says whether there are more pages; false stops."
+            },
+            "in": {
+              "enum": ["query", "body"],
+              "description": "Where the page parameters go. With body, each is a path in the JSON body, like variables.after."
+            }
+          }
         }
       }
-    }
-  },
+    },
     "field": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": {"type": "string"},
-        "label": {"type": "string"},
-        "type": {"enum": ["text", "textarea", "number", "select"]},
+        "name": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "textarea",
+            "number",
+            "select",
+            "boolean",
+            "json",
+            "multiselect",
+            "datetime",
+            "file"
+          ]
+        },
         "default": {},
         "options": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["label", "value"],
-            "properties": {"label": {"type": "string"}, "value": {"type": "string"}}
+            "required": [
+              "label",
+              "value"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            }
           }
         },
-        "secret": {"type": "boolean"},
-        "required": {"type": "boolean"},
-        "strip": {"type": "string"}
+        "secret": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "strip": {
+          "type": "string"
+        },
+        "format": {
+          "enum": ["unix", "unix_ms"],
+          "description": "For a datetime: send it as seconds (unix) or milliseconds (unix_ms) since 1970."
+        },
+        "options_from": {
+          "type": "object",
+          "required": [
+            "request"
+          ],
+          "description": "Lists the options from the service: a request (which may use {{fields.x}}), the path of the items, and the keys of each item that are its label and value.",
+          "properties": {
+            "request": {
+              "type": "object",
+              "required": [
+                "method",
+                "path"
+              ],
+              "properties": {
+                "method": {
+                  "enum": [
+                    "GET",
+                    "POST",
+                    "PUT",
+                    "PATCH",
+                    "DELETE"
+                  ]
+                },
+                "path": {
+                  "type": "string"
+                },
+                "headers": {
+                  "type": "object"
+                },
+                "query": {
+                  "type": "object"
+                },
+                "body": {},
+                "base_url": {
+                  "type": "string",
+                  "description": "This request's own address, in place of the manifest's base_url."
+                },
+                "body_type": {
+                  "enum": [
+                    "json",
+                    "form"
+                  ]
+                }
+              }
+            },
+            "path": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string",
+              "default": "name"
+            },
+            "value": {
+              "type": "string",
+              "default": "id"
+            },
+            "pagination": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "cursor",
+                    "offset",
+                    "page",
+                    "link"
+                  ]
+                },
+                "items_path": {
+                  "type": "string"
+                },
+                "page_size": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "limit_param": {
+                  "type": "string"
+                },
+                "cursor_param": {
+                  "type": "string"
+                },
+                "next_path": {
+                  "type": "string"
+                },
+                "offset_param": {
+                  "type": "string"
+                },
+                "page_param": {
+                  "type": "string"
+                },
+                "first_page": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "has_more_path": {
+                  "type": "string",
+                  "description": "Where the answer says whether there are more pages; false stops."
+                },
+                "in": {
+                  "enum": ["query", "body"],
+                  "description": "Where the page parameters go. With body, each is a path in the JSON body, like variables.after."
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

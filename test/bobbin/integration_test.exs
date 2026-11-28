@@ -109,6 +109,73 @@ defmodule Bobbin.IntegrationTest do
     end
   end
 
+  test "a logo is the service's own SVG, and the icon stays as the fallback" do
+    yaml = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    icon: hero-ticket
+    logo: |
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#F00" d="M0 0h24v24H0z"/></svg>
+    base_url: https://acme.test/
+    actions:
+      - {name: Ping, request: {method: GET, path: ping}}
+    """
+
+    assert {:ok, %{icon: "hero-ticket", logo: "<svg" <> _}} = Integration.parse(yaml)
+
+    no_logo = String.replace(yaml, ~r/logo: \|\n.*\n/, "")
+    assert {:ok, %{logo: nil}} = Integration.parse(no_logo)
+  end
+
+  test "a logo must be an SVG without scripts, and small" do
+    base = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    base_url: https://acme.test/
+    actions:
+      - {name: Ping, request: {method: GET, path: ping}}
+    """
+
+    for logo <- [
+          "<png/>",
+          ~s{<svg onload="alert(1)"></svg>},
+          "<svg><script>alert(1)</script></svg>",
+          "<svg>" <> String.duplicate("a", 40_000) <> "</svg>"
+        ] do
+      yaml = base <> "logo: |\n  " <> logo <> "\n"
+      assert {:error, [message]} = Integration.parse(yaml)
+      assert message =~ "logo"
+    end
+  end
+
+  test "refuses YAML aliases, which yamerl reads wrong" do
+    yaml = """
+    id: acme
+    name: Acme
+    version: 1.0.0
+    base_url: https://acme.test/
+    actions:
+      - name: Get
+        description: "Stars like *this* and 'a, *b' are text"
+        fields:
+          - &id {name: id, label: ID}
+        request: {method: GET, path: "things/{{fields.id}}"}
+      - name: Delete
+        fields: [*id]
+        request: {method: DELETE, path: "things/{{fields.id}}"}
+      - name: Update
+        fields:
+          - *id # same field
+        request: {method: PATCH, path: "things/{{fields.id}}"}
+    """
+
+    assert {:error, [first, second]} = Integration.parse(yaml)
+    assert first =~ "Line 12 uses a YAML alias"
+    assert second =~ "Line 16"
+  end
+
   test "refuses what isn't a manifest" do
     assert {:error, ["The manifest must be a map."]} = Integration.parse("- a\n- b")
     assert {:error, ["Invalid YAML" <> _]} = Integration.parse("a: [")
@@ -120,13 +187,18 @@ defmodule Bobbin.IntegrationTest do
     action = schema["$defs"]["action"]["properties"]
 
     assert Map.keys(action) |> Enum.sort() ==
-             ~w(description fields name output pagination request)
+             ~w(description fields name output pagination request resource)
 
-    assert schema["properties"]["actions"]["items"] == %{"$ref" => "#/$defs/action"}
+    assert schema["properties"]["actions"]["items"] == %{
+             "allOf" => [%{"$ref" => "#/$defs/action"}, %{"required" => ["request"]}]
+           }
 
     assert [%{"$ref" => "#/$defs/action"}, poll] =
              schema["properties"]["triggers"]["items"]["allOf"]
 
     assert Map.keys(poll["properties"]["poll"]["properties"]) |> Enum.sort() == ~w(every id)
+
+    assert Map.keys(poll["properties"]["webhook"]["properties"]) |> Enum.sort() ==
+             ~w(challenge output register signature unregister)
   end
 end
