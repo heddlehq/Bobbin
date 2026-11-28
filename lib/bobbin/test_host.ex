@@ -13,7 +13,8 @@ defmodule Bobbin.TestHost do
 
   Runs aren't started: `start_runs/1` keeps each request, which `runs/0` lists, and
   answers a `run_id` for it. A function in `:bobbin, :test_start_runs` answers in its
-  place, to try what a node does with a flow that ran.
+  place, to try what a node does with a flow that ran. `resume_run/4` keeps what it
+  got, which `resumed/2` reads.
 
   The store keeps records in memory, and `with_run` keeps them at once, since no run
   ends here. `reset/0` empties both, for a test's `setup`.
@@ -56,6 +57,20 @@ defmodule Bobbin.TestHost do
     case :ets.take(@table, {:run, run_id}) do
       [] -> {:error, :not_found}
       [_run] -> :ok
+    end
+  end
+
+  @impl true
+  def resume_run(workspace_id, run_id, key, value) do
+    :ets.insert(@table, {{:resumed, run_id, key}, workspace_id, value})
+    :ok
+  end
+
+  @doc "What `resume_run/4` was given for `run_id` and `key`, or nil."
+  def resumed(run_id, key) do
+    case :ets.lookup(@table, {:resumed, run_id, key}) do
+      [{_id, _workspace_id, value}] -> {:ok, value}
+      [] -> nil
     end
   end
 

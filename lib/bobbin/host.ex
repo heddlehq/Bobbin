@@ -71,6 +71,19 @@ defmodule Bobbin.Host do
               :ok | {:error, :not_found | String.t()}
 
   @doc """
+  Resumes the run `run_id` (the `"run_id"` of a node's context) of `workspace_id`,
+  paused by `Bobbin.Node.wait_for_call/2` with `key`, with `value` as its `result`. A
+  run still running is waited for a moment, so an answer that comes back fast isn't
+  lost. Answers `{:error, :not_waiting}` when it waits for something else or ended.
+  """
+  @callback resume_run(
+              workspace_id :: term(),
+              run_id :: String.t(),
+              key :: String.t(),
+              value :: term()
+            ) :: :ok | {:error, :not_found | :not_waiting | String.t()}
+
+  @doc """
   The record `key` of `namespace` in `workspace_id`. With `with_run: run_id`, it is
   what that run left, even before it is kept.
   """
@@ -122,6 +135,7 @@ defmodule Bobbin.Host do
 
   @optional_callbacks start_runs: 1,
                       cancel_run: 2,
+                      resume_run: 4,
                       store_get: 4,
                       store_put: 5,
                       store_delete: 4,
@@ -136,6 +150,10 @@ defmodule Bobbin.Host do
 
   @doc "Cancels a run through the host, see `c:cancel_run/2`."
   def cancel_run(workspace_id, run_id), do: call(:cancel_run, [workspace_id, run_id])
+
+  @doc "Resumes a run through the host, see `c:resume_run/4`."
+  def resume_run(workspace_id, run_id, key, value),
+    do: call(:resume_run, [workspace_id, run_id, key, value])
 
   @doc "Reads a record through the host, see `c:store_get/4`."
   def store_get(workspace_id, namespace, key, opts \\ []),
@@ -166,6 +184,7 @@ defmodule Bobbin.Host do
 
   defp describe(:start_runs), do: "start runs of other flows"
   defp describe(:cancel_run), do: "cancel runs"
+  defp describe(:resume_run), do: "resume runs"
   defp describe(_store), do: "keep data for an integration"
 
   defp host do

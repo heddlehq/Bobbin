@@ -41,6 +41,12 @@ defmodule Bobbin.HostTest do
     end
   end
 
+  test "keeps what resumes a run" do
+    assert :ok = Host.resume_run(1, "run-1", "ask/1", %{"reply" => "yes"})
+    assert {:ok, %{"reply" => "yes"}} = TestHost.resumed("run-1", "ask/1")
+    assert TestHost.resumed("run-1", "ask/2") == nil
+  end
+
   describe "the store" do
     test "keeps a record by workspace and namespace, and counts its versions" do
       assert {:error, :not_found} = Host.store_get(1, "acme", "a")
