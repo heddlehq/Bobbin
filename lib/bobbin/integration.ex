@@ -44,7 +44,9 @@ defmodule Bobbin.Integration do
   ## Templates
 
   Strings in `request`, `credential.auth` and `output.value` may hold
-  `{{fields.<name>}}` and `{{credential.<name>}}`. A string that is a single
+  `{{fields.<name>}}` and `{{credential.<name>}}`, and `{{time.now}}`,
+  `{{time.hour_ago}}`, `{{time.day_ago}}` or `{{time.week_ago}}` (UTC, ISO 8601) for a
+  poll that asks only for what changed lately. A string that is a single
   placeholder keeps the value's type. Values that end up empty are left out of the
   query and the body, so optional fields need no extra syntax.
 

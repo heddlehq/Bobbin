@@ -10,15 +10,15 @@ defmodule Bobbin.Integration.Request do
   alias Bobbin.Integration.Auth
 
   @max_pages 100
-  @placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*\}\}/
+  @placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook|time)\.([A-Za-z0-9_]+)\s*\}\}/
 
   # In a path, `{{fields.repo | path}}` lets a value like owner/name span segments.
-  @path_placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(path|name)\s*)?\}\}/
+  @path_placeholder ~r/\{\{\s*(fields|credential|auth|request|webhook|time)\.([A-Za-z0-9_]+)\s*(?:\|\s*(path|name)\s*)?\}\}/
   # `{{fields.file | base64}}`, alone in a value, is the file's content (or the text) in
   # Base64, for APIs that take a file inside JSON; `{{fields.file | name}}` its name.
   @item ~r/\A\{\{\s*item\s*\}\}\z/
   @item_inline ~r/\{\{\s*item\s*\}\}/
-  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook)\.([A-Za-z0-9_]+)\s*(?:\|\s*(base64|name|keep)\s*)?\}\}\z/
+  @single_placeholder ~r/\A\{\{\s*(fields|credential|auth|request|webhook|time)\.([A-Za-z0-9_]+)\s*(?:\|\s*(base64|name|keep)\s*)?\}\}\z/
 
   @doc """
   Runs the action called `action_name`.
@@ -134,7 +134,8 @@ defmodule Bobbin.Integration.Request do
     credential = credential || %{}
 
     with {:ok, values} <- field_values(action, fields),
-         vars = Map.merge(extra, %{"fields" => values, "credential" => credential}),
+         vars =
+           Map.merge(extra, %{"fields" => values, "credential" => credential, "time" => times()}),
          {:ok, base_url} <- base_url(integration, integration.base_url, credential),
          {:ok, url} <- base_url(integration, action_base_url(action, integration), credential) do
       send = fn ->
@@ -168,6 +169,20 @@ defmodule Bobbin.Integration.Request do
           error
       end
     end
+  end
+
+  # `{{time.now}}` and the moments before it, in UTC, for a poll that asks only for
+  # what changed lately, like Google Calendar's updatedMin.
+  defp times do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    ago = &(now |> DateTime.add(-&1, :second) |> DateTime.to_iso8601())
+
+    %{
+      "now" => DateTime.to_iso8601(now),
+      "hour_ago" => ago.(3600),
+      "day_ago" => ago.(86_400),
+      "week_ago" => ago.(604_800)
+    }
   end
 
   defp unauthorized_as_error({:unauthorized, message}), do: {:error, message}

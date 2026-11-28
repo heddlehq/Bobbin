@@ -377,6 +377,32 @@ defmodule Bobbin.Integration.RequestTest do
     assert {:ok, _} = Request.run(acme, "Ping", %{}, %{}, plug: plug)
   end
 
+  test "time placeholders give now and the moments before it, in UTC" do
+    yaml = """
+    id: cal
+    name: Cal
+    version: 1.0.0
+    base_url: https://api.test/
+    actions:
+      - name: Changed
+        request: {method: GET, path: events, query: {updatedMin: "{{time.day_ago}}", until: "{{time.now}}"}}
+    """
+
+    {:ok, cal} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      send(self(), {:query, Plug.Conn.fetch_query_params(conn).query_params})
+      Req.Test.json(conn, %{})
+    end
+
+    assert {:ok, _} = Request.run(cal, "Changed", %{}, %{}, plug: plug)
+    assert_received {:query, %{"updatedMin" => min, "until" => now}}
+    {:ok, min, 0} = DateTime.from_iso8601(min)
+    {:ok, now, 0} = DateTime.from_iso8601(now)
+    assert DateTime.diff(now, min) == 86_400
+    assert abs(DateTime.diff(DateTime.utc_now(), now)) < 5
+  end
+
   test "a form sends a list once per value, and a map as JSON, like Mailgun's o:tag" do
     yaml = """
     id: gun
