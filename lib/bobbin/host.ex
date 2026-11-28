@@ -71,19 +71,25 @@ defmodule Bobbin.Host do
               :ok | {:error, :not_found | String.t()}
 
   @doc """
-  The record `key` of `namespace` in `workspace_id`. Inside a run, it is what that
-  run left, even before it is kept.
+  The record `key` of `namespace` in `workspace_id`. With `with_run: run_id`, it is
+  what that run left, even before it is kept.
   """
-  @callback store_get(workspace_id :: term(), namespace :: String.t(), key :: String.t()) ::
-              {:ok, record()} | {:error, :not_found}
+  @callback store_get(
+              workspace_id :: term(),
+              namespace :: String.t(),
+              key :: String.t(),
+              opts :: keyword()
+            ) :: {:ok, record()} | {:error, :not_found}
 
   @doc """
   Keeps `value` as `key`. Options:
 
     * `version: n` keeps it only if the record is at version `n`, and `0` only if
       there is none, or answers `{:error, :conflict}`.
-    * `with_run: true` keeps it only once the run asking ends well: a run that fails
-      changes nothing. Until then, that run reads what it wrote.
+    * `with_run: run_id`, with the `"run_id"` of the node's context, keeps it only
+      once that run ends well: a run that fails changes nothing. Until then, that run
+      reads what it wrote, when it passes `with_run` to `store_get/4` and
+      `store_list/4` too.
 
   Returns the new version.
   """
@@ -105,7 +111,7 @@ defmodule Bobbin.Host do
 
   @doc """
   The records of `namespace` whose keys begin with `prefix`, by key. Options: `limit`,
-  100 by default.
+  100 by default, and `with_run`, as for `store_get/4`.
   """
   @callback store_list(
               workspace_id :: term(),
@@ -116,7 +122,7 @@ defmodule Bobbin.Host do
 
   @optional_callbacks start_runs: 1,
                       cancel_run: 2,
-                      store_get: 3,
+                      store_get: 4,
                       store_put: 5,
                       store_delete: 4,
                       store_list: 4
@@ -131,9 +137,9 @@ defmodule Bobbin.Host do
   @doc "Cancels a run through the host, see `c:cancel_run/2`."
   def cancel_run(workspace_id, run_id), do: call(:cancel_run, [workspace_id, run_id])
 
-  @doc "Reads a record through the host, see `c:store_get/3`."
-  def store_get(workspace_id, namespace, key),
-    do: call(:store_get, [workspace_id, namespace, key])
+  @doc "Reads a record through the host, see `c:store_get/4`."
+  def store_get(workspace_id, namespace, key, opts \\ []),
+    do: call(:store_get, [workspace_id, namespace, key, opts])
 
   @doc "Keeps a record through the host, see `c:store_put/5`."
   def store_put(workspace_id, namespace, key, value, opts \\ []),

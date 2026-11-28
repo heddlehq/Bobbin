@@ -15,8 +15,8 @@ defmodule Bobbin.TestHost do
   answers a `run_id` for it. A function in `:bobbin, :test_start_runs` answers in its
   place, to try what a node does with a flow that ran.
 
-  The store keeps records in memory, and `with_run: true` keeps them at once, since
-  no run ends here. `reset/0` empties both, for a test's `setup`.
+  The store keeps records in memory, and `with_run` keeps them at once, since no run
+  ends here. `reset/0` empties both, for a test's `setup`.
   """
 
   @behaviour Bobbin.Host
@@ -70,7 +70,7 @@ defmodule Bobbin.TestHost do
   end
 
   @impl true
-  def store_get(workspace_id, namespace, key) do
+  def store_get(workspace_id, namespace, key, _opts \\ []) do
     case :ets.lookup(@table, {:record, workspace_id, namespace, key}) do
       [{_id, value, version}] -> {:ok, %{key: key, value: value, version: version}}
       [] -> {:error, :not_found}
