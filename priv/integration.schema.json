@@ -584,6 +584,7 @@
               "enum": [
                 "json",
                 "form",
+                "form_nested",
                 "multipart",
                 "related",
                 "binary"

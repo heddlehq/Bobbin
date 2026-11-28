@@ -440,6 +440,65 @@ defmodule Bobbin.Integration.RequestTest do
              )
   end
 
+  test "a nested form writes maps and lists with brackets, like Stripe's metadata[k]" do
+    yaml = """
+    id: stripe
+    name: Stripe
+    version: 1.0.0
+    base_url: https://api.test/
+    actions:
+      - name: Create
+        fields:
+          - {name: email, label: Email}
+          - {name: metadata, label: Metadata, type: json}
+          - {name: price, label: Price}
+          - {name: expand, label: Expand}
+          - {name: empty, label: Empty}
+        request:
+          method: POST
+          path: checkout
+          body_type: form_nested
+          body:
+            customer_email: "{{fields.email}}"
+            metadata: "{{fields.metadata}}"
+            line_items: [{price: "{{fields.price}}", quantity: 1}]
+            expand: {_each: "{{fields.expand}}", _value: "{{item}}"}
+            shipping: {name: "{{fields.empty}}"}
+            livemode: false
+    """
+
+    {:ok, stripe} = Bobbin.Integration.parse(yaml)
+
+    plug = fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(self(), {:form, body})
+      Req.Test.json(conn, %{})
+    end
+
+    fields = %{
+      "email" => "ana@b.c",
+      "metadata" => %{"plan" => "pro", "seats" => 3},
+      "price" => "price_1",
+      "expand" => "customer, invoice"
+    }
+
+    assert {:ok, _} = Request.run(stripe, "Create", fields, %{}, plug: plug)
+
+    assert_received {:form, body}
+
+    assert body |> URI.decode_www_form() |> String.split("&") |> Enum.sort() ==
+             Enum.sort([
+               "customer_email=ana@b.c",
+               "metadata[plan]=pro",
+               "metadata[seats]=3",
+               "line_items[0][price]=price_1",
+               "line_items[0][quantity]=1",
+               "expand[0]=customer",
+               "expand[1]=invoice",
+               "livemode=false"
+             ])
+  end
+
   test "a header written as a map goes as JSON, in ASCII, like Dropbox's Dropbox-API-Arg" do
     yaml = """
     id: box

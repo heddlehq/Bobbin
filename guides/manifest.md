@@ -287,14 +287,16 @@ actions:
 | `request.path` | Joined to `base_url`. It may hold templates. |
 | `request.query` | The parameters of the address, as a map. |
 | `request.headers` | Headers of this request, besides the credential's. A map goes as JSON, in ASCII, like Dropbox's `Dropbox-API-Arg: {path: "{{fields.path}}"}`. |
-| `request.body_type` | `json`, the default, `form`, `multipart`, `related` or `binary`, see Files. |
+| `request.body_type` | `json`, the default, `form`, `form_nested`, `multipart`, `related` or `binary`, see Files. |
 | `request.base_url` | This request's own address, in place of the manifest's `base_url`, for a service with a host for uploads, like Dropbox's `https://content.dropboxapi.com/2/`. |
 
 A `select` sends its option's `value` as written, so `value: 2` goes as a number and
 `value: "2"` as text. A `boolean` sends `true` or `false`. A `json` field sends what its JSON describes,
 a map or a list, and fails when it isn't JSON. In `query`, a map goes as JSON text and a
 list of plain values as `a,b,c`, or once per value when the key ends in `[]`
-(`tags[]=a&tags[]=b`). A `multiselect` sends a list, and
+(`tags[]=a&tags[]=b`). In a `form` body, a list goes once per value and a map as JSON;
+`form_nested` writes them as Stripe, Rails and PHP read them instead, a map as
+`metadata[plan]=pro` and a list by position, `items[0][price]=p_1`. A `multiselect` sends a list, and
 takes one written as `a, b` too. A `datetime` sends the text as written, once it
 reads as an ISO 8601 date (`2026-01-31` or `2026-01-31T09:00:00Z`). With `format: unix` or
 `format: unix_ms`, it goes as seconds or milliseconds since 1970 instead, for APIs

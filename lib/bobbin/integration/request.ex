@@ -642,7 +642,32 @@ defmodule Bobbin.Integration.Request do
   defp form_pairs({key, map}) when is_map(map), do: [{key, JSON.encode!(map)}]
   defp form_pairs(pair), do: [pair]
 
+  # Stripe's form, as Rails and PHP read it: a map nests as `metadata[plan]=pro`, a list
+  # by position, `items[0][price]=p_1`.
+  defp nested_pairs(map, prefix) when is_map(map),
+    do: Enum.flat_map(map, fn {key, value} -> nested_pairs(value, nest(prefix, key)) end)
+
+  defp nested_pairs(list, prefix) when is_list(list),
+    do:
+      list
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {value, index} -> nested_pairs(value, nest(prefix, index)) end)
+
+  defp nested_pairs(value, prefix), do: [{prefix, text(value)}]
+
+  defp nest(nil, key), do: to_string(key)
+  defp nest(prefix, key), do: "#{prefix}[#{key}]"
+
   defp put_body(options, %{body: nil}, _vars), do: {:ok, options}
+
+  defp put_body(options, %{body: body, body_type: "form_nested"}, vars),
+    do:
+      {:ok,
+       Keyword.put(
+         options,
+         :form,
+         body |> render(vars) |> compact() |> unfile() |> nested_pairs(nil)
+       )}
 
   defp put_body(options, %{body: body, body_type: "form"}, vars),
     do:
