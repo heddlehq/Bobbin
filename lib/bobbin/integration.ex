@@ -88,7 +88,8 @@ defmodule Bobbin.Integration do
     * `client_credentials`: `token_url`, `client_id`, `client_secret`, `scopes`.
       Bobbin fetches the token and keeps it, see `Bobbin.Integration.Auth`.
     * `login`: a `request` that returns a token at `token_path`, put on each request
-      by `apply` (an auth of the types above, with `{{auth.token}}`).
+      by `apply` (an auth of the types above, with `{{auth.token}}`). The request may
+      send `basic: {username, password}` as Basic auth.
     * `jwt`: a token signed for each request (`algorithm`, `key`, `claims`).
     * `hmac`: a signature of each request (`secret`, `message`, `signature`).
     * `aws_sigv4`: `access_key_id`, `secret_access_key`, `region`, `service`.
